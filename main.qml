@@ -76,8 +76,9 @@ ApplicationWindow {
         // frontend startup. Will hopefully reduce load time of game.
 
         Component.onCompleted: {
-            libcore = "C:/Users/lee/Desktop/32_cores/nestopia_libretro.dll";
-            game =  "C:/Users/lee/Documents/Emulation/NES/Kung Fu (Japan, USA).nes";
+            libcore = "C:/Users/lee/Desktop/32_cores/snes9x_libretro.dll";
+            game = "C:/Users/lee/Documents/Emulation/SNES/Chrono Trigger (USA).sfc";
+
         }
 
     }

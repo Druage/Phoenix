@@ -15,6 +15,8 @@
 #include "qdebug.h"
 #include "core.h"
 #include "audio.h"
+#include "input-gamepad.h"
+
 
 class GLWindow : public QQuickItem {
     Q_OBJECT
@@ -119,6 +121,7 @@ private:
 
     // Input
     // [4]
+    GamePad gamepad;
     unsigned id;
     unsigned device;
     unsigned port;

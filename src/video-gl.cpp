@@ -31,6 +31,12 @@ GLWindow::GLWindow() {
     m_libcore = "";
     m_game = "";
 
+
+    gamepad.setCore(core);
+    gamepad.setPort(0);
+    if (gamepad.connect())
+        qDebug() <<  "JoyStick connected";
+
     id = 0;
     device = RETRO_DEVICE_JOYPAD;
     port = 0;
@@ -49,6 +55,7 @@ GLWindow::GLWindow() {
 
 GLWindow::~GLWindow() {
     delete core;
+    //delete gamepad;
     if (m_program)
         delete m_program;
     if (m_texture)
@@ -66,6 +73,7 @@ void GLWindow::handleWindowChanged(QQuickWindow *win)
         connect(win, SIGNAL(widthChanged(int)), this, SLOT(handleGeometryChanged(int)));
         connect(win, SIGNAL(heightChanged(int)), this, SLOT(handleGeometryChanged(int)));
         connect(win, SIGNAL(sceneGraphInitialized()), this, SLOT(handleSceneGraphInitialized()));
+
 
         // If we allow QML to do the clearing, they would clear what we paint
         // and nothing would show.
@@ -276,6 +284,8 @@ void GLWindow::initGL() {
     glViewport(viewportRect.x(), viewportRect.y(),
                viewportRect.width(), viewportRect.height());
 
+
+
     glDisable(GL_DEPTH_TEST);
 
     glClearColor(0, 0, 0, 1);
@@ -397,6 +407,7 @@ void GLWindow::paint() {
     m_texture->release();
 
     // Loop forever;
+    gamepad.sync(); // Only here temporarily
     window()->update();
 }
 
