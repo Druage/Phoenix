@@ -5,8 +5,8 @@
 #include <QMap>
 #include <SDL2/SDL.h>
 
-class Joystick
-{
+class Joystick {
+
 public:
     int index;
     QString name;
@@ -20,6 +20,7 @@ public:
 
     Joystick();
     ~Joystick();
+
 };
 
 #endif // JOYINFO_H

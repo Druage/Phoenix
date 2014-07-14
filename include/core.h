@@ -111,6 +111,7 @@ public:
     bool isDupeFrame() const { return is_dupe_frame; };
 
     // Input
+    InputManager *getInputManager();
 
     // Initilization methods
     bool loadCore(const char * path);
@@ -210,6 +211,7 @@ private:
 
     // Input
     InputManager *input_manager;
+    QThread input_thread;
 
     // Timing
     bool is_dupe_frame;

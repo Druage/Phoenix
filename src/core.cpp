@@ -49,6 +49,10 @@ Core::Core() {
     is_dupe_frame = false;
 
     input_manager = new InputManager();
+    input_manager->moveToThread(&input_thread);
+
+    input_thread.start(QThread::HighestPriority);
+    qCDebug(phxInput) << "Input Thread running";
     input_manager->scanDevices();
     input_manager->startTimer(20);
 
@@ -58,6 +62,7 @@ Core::Core() {
 
 Core::~Core() {
 
+    input_thread.deleteLater();
     input_manager->deleteLater();
     delete libretro_core;
     delete system_av_info;
@@ -91,6 +96,11 @@ void Core::doFrame() {
 // Input
 // [3]
 
+InputManager *Core::getInputManager() {
+
+    return input_manager;
+
+} // Core::getInputManager()
 
 // ~[3]
 
@@ -482,7 +492,7 @@ int16_t Core::inputStateCallback(unsigned port, unsigned device, unsigned index,
            // qCDebug(phxInput) << "id: " << id
                               //<< " === " << Core::core->input_manager->getDevice(port)->buttons[id];
 
-            return Core::core->input_manager->getDevice(port)->buttons[id];
+            return Core::core->input_manager->getDevice(port)->button_states[id];
 
         case RETRO_DEVICE_KEYBOARD:
             // If key press id is a proper key, return true

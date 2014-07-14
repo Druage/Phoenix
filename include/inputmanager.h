@@ -18,7 +18,9 @@ public:
     void startTimer(int mili_secs=20);
     void stopTimer();
 
-    Joystick * getDevice(unsigned port);
+    void append(InputDevice *device);
+
+    InputDevice * getDevice(unsigned port);
 
 public slots:
     void getDeviceEvents();
@@ -26,7 +28,7 @@ public slots:
 signals:
 
 private:
-    QList<Joystick *> joysticks;
+    QList<InputDevice *> joysticks;
     SDLJoystick sdl_joystick;
     QTimer timer;
 

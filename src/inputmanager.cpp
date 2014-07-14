@@ -1,7 +1,7 @@
 #include "inputmanager.h"
 
 InputManager::InputManager() {
-
+    joysticks.clear();
     connect(&timer, SIGNAL(timeout()), this, SLOT(getDeviceEvents()));
 
 }
@@ -12,13 +12,13 @@ InputManager::~InputManager() {
 
 }
 
-void append() {
+void InputManager::append(InputDevice *device) {
 
-    //sdl_joystick = SDLJoystick(this,)
+    joysticks.push_back(device);
 
 }
 
-Joystick * InputManager::getDevice(unsigned port) {
+InputDevice * InputManager::getDevice(unsigned port) {
 
     current_port = port;
 

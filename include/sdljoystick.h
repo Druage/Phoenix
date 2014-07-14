@@ -6,6 +6,7 @@
 #include <QList>
 #include <QListIterator>
 #include "joystick.h"
+#include "inputdevice.h"
 #include "logging.h"
 #include "libretro.h"
 
@@ -14,7 +15,7 @@ class SDLJoystick : public QObject
     Q_OBJECT
 
 public:
-    QList<Joystick *> joys;
+    QList<InputDevice *> joys;
 
     explicit SDLJoystick(QObject *parent = 0);
     ~SDLJoystick();
@@ -26,8 +27,8 @@ signals:
     void dataChanged(unsigned port, unsigned device, unsigned index, unsigned id);
 
 public slots:
-    QList<Joystick *> onScan();
-    void onProcessEvent(QList<Joystick *> &joysticks);
+    QList<InputDevice *> onScan();
+    void onProcessEvent(QList<InputDevice *> &devices);
 
 private:
     unsigned port;

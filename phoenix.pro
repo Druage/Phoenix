@@ -27,7 +27,8 @@ HEADERS += include/core.h        \
            include/joystick.h    \
            include/sdljoystick.h \
            include/logging.h     \
-           include/inputmanager.h
+           include/inputmanager.h\
+           include/inputdevice.h
 
 SOURCES += src/main.cpp          \
            src/videoitem.cpp     \
@@ -37,6 +38,7 @@ SOURCES += src/main.cpp          \
            src/sdljoystick.cpp   \
            src/joystick.cpp      \
            src/logging.cpp       \
-           src/inputmanager.cpp
+           src/inputmanager.cpp  \
+           src/inputdevice.cpp
 
 RESOURCES = qml.qrc
