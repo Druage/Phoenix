@@ -3,34 +3,57 @@
 
 #include <SFML/Window/Joystick.hpp>
 #include <SFML/Window.hpp>
-#include <QVector>
+#include <QThread>
+#include <QEvent>
+#include <QTimer>
+#include <QMap>
+#include <QQueue>
+
 #include "core.h"
 
-class GamePad {
-
+class ButtonPress : public QEvent {
 public:
-    GamePad();
-    //~GamePad();
+    ButtonPress() :
+        QEvent(ButtonPress::type()) {
+    }
 
-    bool connect();
-    void setPort(unsigned int gamepad_port);
-    void handleEvent(sf::Event event);
-    void handlePress(unsigned int button, unsigned &id);
-    void setCore( Core *retro_core );
-
-signals:
-
-public slots:
-    void sync(); // same as sf::Joystick::update()
-
-private:
-    sf::Window *sfml_window;
-    sf::Joystick current_retropad;
-    Core *core;
-    int retropad_count;
-    unsigned int port;
-
+    static QEvent::Type type() {
+        return static_cast<QEvent::Type>(2000);
+    }
 
 };
+
+class ButtonRelease : public QEvent {
+public:
+    ButtonRelease() :
+        QEvent(ButtonRelease::type()) {
+    }
+
+    static QEvent::Type type() {
+        return static_cast<QEvent::Type>(2001);
+    }
+
+};
+
+/*
+
+class GamePadEventHandler : QObject {
+    Q_OBJECT
+public:
+    explicit GamePadEventHandler(QObject *parent = 0);
+    ~GamePadEventHandler();
+    bool popEvent(QEvent &event, bool block);
+    void pushEvent(QEvent &event);
+    void processGamePadEvents();
+    void start();
+
+private:
+    sf::Event top_event;
+    sf::Joystick *gamepad;
+
+    QQueue<QEvent::Type> events;
+    QTimer timer;
+}
+*/
 
 #endif // INPUT_GAMEPAD_H

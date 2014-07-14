@@ -1,46 +1,15 @@
 
-#include "video-gl.h"
+#include "videoitem.h"
 
-#include "audio.h"
-
-
-
-
-GLWindow::GLWindow() {
-
-
-//#ifdef Q_OS_WIN32
-    //QString core_path = "../libretro-super/dist/win/bsnes_balanced_libretro.dll";
-    //QString game_path = "../test_roms/Chrono Trigger (U) [!].smc";
-//#endif
-
-//#ifdef Q_OS_LINUX
-    //QString core_path = "../libretro-super/dist/unix/bsnes_balanced_libretro.so";
-    //QString game_path = "../test_roms/Chrono Trigger (U) [!].smc";
-//#endif
+VideoItem::VideoItem() {
 
     core = new Core();
-    //if (!core->loadCore(core_path)) {
-       // qDebug() << "Core was not loaded";
-        //exit(EXIT_FAILURE);
-    //}
-    //if (!core->loadGame(game_path)) {
-        //qDebug() << "Game was not loaded";
-        //exit(EXIT_FAILURE);
-    //}
 
     m_program = 0;
     m_texture = 0;
     m_libcore = "";
     m_game = "";
-
-
-    //gamepad.setCore(core);
-    //gamepad.setPort(0);
-
-    // (gamepad.connect())
-        //qDebug() <<  "JoyStick connected";
-
+    m_gamepad_scan = false;
 
 
     id = 0;
@@ -49,77 +18,28 @@ GLWindow::GLWindow() {
     is_pressed = true;
     index = 0;
 
-    gamepad.update();
-    if (gamepad.isConnected(port))
-        qDebug() << "JoyStick is connected to port " << port;
-    else
-        qDebug() << "JoyStick is not connected";
-
-
     audio = new Audio();
     Q_CHECK_PTR(audio);
     audio->start();
-    core->aio = audio->aio();
+    core->audio_buf = audio->abuf();
+
+    connect(&fps_timer, SIGNAL(timeout()), this, SLOT(updateFps()));
+    frame_timer.invalidate();
+    fps_deviation = 0;
 
     connect(this, SIGNAL(runChanged(bool)), audio, SLOT(runChanged(bool)));
     connect(this, SIGNAL(windowChanged(QQuickWindow*)), this, SLOT(handleWindowChanged(QQuickWindow*)));
-
 }
 
-GLWindow::~GLWindow() {
+VideoItem::~VideoItem() {
     delete core;
-    //delete gamepad;
     if (m_program)
         delete m_program;
     if (m_texture)
         delete m_texture;
 }
 
-void GLWindow::buttonReleaseEvent(int button) {
-
-    id = button;
-    device = RETRO_DEVICE_JOYPAD;
-    is_pressed = false;
-    index = 0;
-
-    core->setInputStateCallBack(is_pressed, port, device, index, id);
-
-}
-
-void GLWindow::buttonPressEvent(int button) {
-
-    id = button;
-    device = RETRO_DEVICE_JOYPAD;
-    is_pressed = true;
-    index = 0;
-
-    core->setInputStateCallBack(is_pressed, port, device, index, id);
-
-}
-
-void GLWindow::gamepadEventHandler() {
-
-}
-
-void GLWindow::pollGamePad() {
-
-    gamepad.update();
-
-    if (gamepad.isConnected(port)) {
-        for (int i = 0; i < 16; ++i) {
-             if (gamepad.isButtonPressed(port, i)) {
-                 eventFilter(this, new ButtonPress(), i);
-             }
-             else
-                 eventFilter(this, new ButtonRelease(), i);
-        }
-    }
-    else {
-        qDebug() << "not connected";
-    }
-}
-
-void GLWindow::handleWindowChanged(QQuickWindow *win)
+void VideoItem::handleWindowChanged(QQuickWindow *win)
 {
     if (win) {
         // Connect the beforeRendering signal to our paint function.
@@ -130,9 +50,6 @@ void GLWindow::handleWindowChanged(QQuickWindow *win)
         connect(win, SIGNAL(widthChanged(int)), this, SLOT(handleGeometryChanged(int)));
         connect(win, SIGNAL(heightChanged(int)), this, SLOT(handleGeometryChanged(int)));
         connect(win, SIGNAL(sceneGraphInitialized()), this, SLOT(handleSceneGraphInitialized()));
-        connect(win, SIGNAL(afterRendering()), this, SLOT(pollGamePad()), Qt::DirectConnection);
-
-
 
         // If we allow QML to do the clearing, they would clear what we paint
         // and nothing would show.
@@ -141,7 +58,7 @@ void GLWindow::handleWindowChanged(QQuickWindow *win)
     }
 }
 
-void GLWindow::handleSceneGraphInitialized() {
+void VideoItem::handleSceneGraphInitialized() {
     refreshItemGeometry();
     // initialize m_texture with an empty 1x1 black image
     QImage emptyImage(1, 1, QImage::Format_RGB32);
@@ -149,45 +66,60 @@ void GLWindow::handleSceneGraphInitialized() {
     m_texture = new QOpenGLTexture(emptyImage);
 }
 
-void GLWindow::setWindowVisibility(QString windowVisibility) {
+void VideoItem::setWindowVisibility(QWindow::Visibility windowVisibility) {
 
     m_win_visibility = windowVisibility;
     emit windowVisibilityChanged( windowVisibility );
 
 }
 
-void GLWindow::setSystemDirectory(QString systemDirectory) {
+void VideoItem::setSystemDirectory(QString systemDirectory) {
 
     core->setSystemDirectory(systemDirectory);
 
 }
 
-void GLWindow::setCore( QString libcore ) {
-    qDebug() << "Core: " << libcore;
-    if ( !core->loadCore(libcore.toStdString().c_str() )) {
-        qDebug() << "Core was not loaded";
-        exit(EXIT_FAILURE);
+void VideoItem::setGamePadScan(bool gamepadScan) {
+    m_gamepad_scan = gamepadScan;
+    emit gamepadScanChanged(gamepadScan);
+}
+
+void VideoItem::setCore(QString libcore) {
+    qCDebug(phxVideo) << "Loading core:" << libcore;
+    if (!core->loadCore(libcore.toStdString().c_str())) {
+        qCCritical(phxVideo, "Couldn't load core !");
+//        exit(EXIT_FAILURE);
     }
+    const retro_system_info *i = core->getSystemInfo();
+    qCDebug(phxVideo) << "Loaded core" << i->library_name << i->library_version;
     emit libcoreChanged(libcore);
 }
 
-void GLWindow::setGame( QString game ) {
-    qDebug() << "Game: " << game;
-    if ( !core->loadGame(game.toStdString().c_str() )) {
-        qDebug() << "Core was not loaded";
-        exit(EXIT_FAILURE);
+void VideoItem::setGame(QString game) {
+    qCDebug(phxVideo) << "Loading game:" << game;
+    if (!core->loadGame(game.toStdString().c_str())) {
+        qCCritical(phxVideo, "Couldn't load game !");
+//        exit(EXIT_FAILURE);
     }
+    qCDebug(phxVideo, "Loaded game at %ix%i @ %.2ffps", core->getBaseWidth(),
+            core->getBaseHeight(), core->getFps());
     updateAudioFormat();
     emit gameChanged(game);
 }
 
 
-void GLWindow::setRun( bool run ) {
+void VideoItem::setRun(bool run) {
     m_run = run;
+    if (run) {
+        qCDebug(phxVideo, "Core started");
+        fps_timer.start(1000);
+    } else {
+        qCDebug(phxVideo, "Core paused");
+    }
     emit runChanged(run);
 }
 
-void GLWindow::updateAudioFormat() {
+void VideoItem::updateAudioFormat() {
     QAudioFormat format;
     format.setSampleSize(16);
     format.setSampleRate(core->getSampleRate());
@@ -199,136 +131,37 @@ void GLWindow::updateAudioFormat() {
     audio->setFormat(format);
 }
 
-bool GLWindow::eventFilter(QObject *object, QEvent *event, int button) {
-    int type = event->type();
+void VideoItem::keyEvent(QKeyEvent *event) {
 
-    if (type == ButtonPress::type()) {
-        qDebug() << "Button Pressed";
-        buttonPressEvent(button);
-        return true;
-    }
-
-    else if (type == ButtonRelease::type()) {
-        qDebug() << "Button Released";
-        buttonReleaseEvent(button);
-        return true;
-    }
-
-    return window()->eventFilter(object, event) ;
-
-}
-
-void GLWindow::keyReleaseEvent(QKeyEvent *event) {
-
-    id = 16;
-    device = RETRO_DEVICE_JOYPAD;
-    port = 0;
-    is_pressed = false;
-    index = 0;
-
-    switch(event->key()) {
-        case Qt::Key_Return:
-            id = RETRO_DEVICE_ID_JOYPAD_START;
-            break;
-        case Qt::Key_Space:
-            break;
-        case Qt::Key_Left:
-            id = RETRO_DEVICE_ID_JOYPAD_LEFT;
-            break;
-        case Qt::Key_Right:
-            id = RETRO_DEVICE_ID_JOYPAD_RIGHT;
-            break;
-        case Qt::Key_Down:
-            id = RETRO_DEVICE_ID_JOYPAD_DOWN;
-            break;
-        case Qt::Key_Up:
-            id = RETRO_DEVICE_ID_JOYPAD_UP ;
-            break;
-        case Qt::Key_A:
-            id = RETRO_DEVICE_ID_JOYPAD_A;
-            break;
-        case Qt::Key_S:
-            id = RETRO_DEVICE_ID_JOYPAD_B;
-            break;
-        case Qt::Key_W:
-            break;
-        case Qt::Key_D:
-            break;
-        case Qt::Key_X:
-            id = RETRO_DEVICE_ID_JOYPAD_X;
-            break;
-        case Qt::Key_Z:
-            id = RETRO_DEVICE_ID_JOYPAD_Y;
-            break;
-        default:
-            break;
-    }
-
-    core->setInputStateCallBack(is_pressed, port, device, index, id);
-
-}
-
-void GLWindow::keyPressEvent(QKeyEvent *event) {
-
-    id = 16;
-    device = RETRO_DEVICE_JOYPAD;
-    port = 0;
-    is_pressed = true;
-    index = 0;
+    //id = 16;
+    //device = RETRO_DEVICE_JOYPAD;
+    //port = 0;
+    is_pressed = (event->type() == QEvent::KeyPress) ? true : false;
+    //index = 0;
 
     switch(event->key()) {
         case Qt::Key_Escape:
-            emit windowVisibilityChanged("Windowed");
+            if(is_pressed)
+                emit windowVisibilityChanged(QWindow::Windowed);
             break;
         case Qt::Key_Space:
-            if (m_run)
-                setRun(false);
-            else
-                setRun(true);
+            if(is_pressed) {
+                if (m_run)
+                    setRun(false);
+                else
+                    setRun(true);
+            }
             break;
-        case Qt::Key_Return:
-            id = RETRO_DEVICE_ID_JOYPAD_START;
-            break;
-        case Qt::Key_Left:
-            id = RETRO_DEVICE_ID_JOYPAD_LEFT;
-            break;
-        case Qt::Key_Right:
-            id = RETRO_DEVICE_ID_JOYPAD_RIGHT;
-            break;
-        case Qt::Key_Down:
-            id = RETRO_DEVICE_ID_JOYPAD_DOWN;
-            break;
-        case Qt::Key_Up:
-            id = RETRO_DEVICE_ID_JOYPAD_UP ;
-            break;
-        case Qt::Key_A:
-            id = RETRO_DEVICE_ID_JOYPAD_A;
-            break;
-        case Qt::Key_S:
-            id = RETRO_DEVICE_ID_JOYPAD_B;
-            break;
-        case Qt::Key_W:
-            break;
-        case Qt::Key_D:
-            break;
-        case Qt::Key_X:
-            id = RETRO_DEVICE_ID_JOYPAD_X;
-            break;
-        case Qt::Key_Z:
-            id = RETRO_DEVICE_ID_JOYPAD_Y;
-            break;
+
         default:
-            qDebug() << "Key not handled";
+            if(is_pressed)
+                qDebug() << "Key not handled";
             break;
     }
 
-    core->setInputStateCallBack(is_pressed, port, device, index, id);
-
 }
 
-//int16_t Core::inputStateCallback( unsigned port, unsigned device, unsigned index, unsigned id ) {
-
-void GLWindow::refreshItemGeometry() {
+void VideoItem::refreshItemGeometry() {
     qreal pixel_ratio = window()->devicePixelRatio();
     item_w = int(pixel_ratio * width());
     item_h = int(pixel_ratio * height());
@@ -338,7 +171,7 @@ void GLWindow::refreshItemGeometry() {
     viewportXY.setY(window()->height() - viewportXY.y());
 }
 
-void GLWindow::initGL() {
+void VideoItem::initGL() {
 
     qreal desired_aspect = core->getAspectRatio();
     ulong core_w = item_h * desired_aspect;
@@ -362,8 +195,6 @@ void GLWindow::initGL() {
     glViewport(viewportRect.x(), viewportRect.y(),
                viewportRect.width(), viewportRect.height());
 
-
-
     glDisable(GL_DEPTH_TEST);
 
     glClearColor(0, 0, 0, 1);
@@ -374,7 +205,7 @@ void GLWindow::initGL() {
 
 }
 
-void GLWindow::initShader() {
+void VideoItem::initShader() {
     m_program = new QOpenGLShaderProgram();
     m_program->addShaderFromSourceCode(QOpenGLShader::Vertex,
                                        "attribute highp vec4 vertices;"
@@ -404,15 +235,17 @@ void GLWindow::initShader() {
 
 }
 
-void GLWindow::setTexture( QOpenGLTexture::Filter min_scale, QOpenGLTexture::Filter max_scale ) {
+void VideoItem::setTexture(QOpenGLTexture::Filter min_scale, QOpenGLTexture::Filter max_scale) {
+
+
     QImage::Format frame_format = retroToQImageFormat(core->getPixelFormat());
 
     m_texture->destroy();
-    m_texture->setData( QImage( ( const uchar * )core->getImageData(),
-                        core->getBaseWidth(),
-                        core->getBaseHeight(),
-                        core->getPitch(),
-                        frame_format ).mirrored() );
+    m_texture->setData(QImage((const uchar *)core->getImageData(),
+                       core->getBaseWidth(),
+                       core->getBaseHeight(),
+                       core->getPitch(),
+                       frame_format).mirrored());
 
     m_texture->setMinMagFilters(min_scale, max_scale);
 
@@ -420,13 +253,37 @@ void GLWindow::setTexture( QOpenGLTexture::Filter min_scale, QOpenGLTexture::Fil
 
 }
 
-void GLWindow::paint() {
-    // Produces 1 frame of data
-    //ButtonPress event(ButtonPress::ButtonType);
+inline bool VideoItem::limitFps() {
+    qreal target_fps_interval = round(1000000.0 / core->getFps()); // µsec
+    if (!frame_timer.isValid()) {
+        frame_timer.start();
+        return false;
+    }
 
-    if (m_run) {
+    qint64 last_frame_time = frame_timer.nsecsElapsed() / (qint64)1000;
+    if (fps_deviation < (-target_fps_interval * 20) && last_frame_time > target_fps_interval) {
+        // reset fps_deviation if we are more than 20 frames late
+        fps_deviation = 0;
+    }
+    fps_deviation += target_fps_interval - last_frame_time;
 
+    frame_timer.start();
+
+    // if we deviated from the core's clock so much that we
+    // are one full frame ahead, skip a frame.
+    if(fps_deviation > target_fps_interval) {
+        fps_deviation -= target_fps_interval;
+        return true;
+    }
+
+    return false;
+}
+
+void VideoItem::paint() {
+
+    if (m_run && !limitFps()) {
         core->doFrame();
+        fps_count++;
 
         // Sets texture from core->getImageData();
         setTexture( QOpenGLTexture::Linear, QOpenGLTexture::LinearMipMapNearest );
@@ -483,17 +340,18 @@ void GLWindow::paint() {
     m_texture->release();
 
     // Loop forever;
-    //gamepad.sync(); // Only here temporarily
     window()->update();
 }
 
-void GLWindow::cleanup()
+void VideoItem::cleanup()
 {
     // resets shader program
     if (m_program) {
         delete m_program;
-        m_program = 0;
+        m_program = nullptr;
     }
-
-
+    if (m_texture) {
+        delete m_texture;
+        m_texture = nullptr;
+    }
 }

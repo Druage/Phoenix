@@ -4,7 +4,7 @@ import QtQuick.Controls.Styles 1.1
 import QtQuick.Layouts 1.1
 import QtGraphicalEffects 1.0
 
-import GLWindow 1.0
+import VideoItem 1.0
 
 ApplicationWindow {
     id: root;
@@ -28,6 +28,12 @@ ApplicationWindow {
 
             mouseTimer.restart();
         }
+        onDoubleClicked: {
+            if (visibility == 5)
+                visibility = "Windowed";
+            else
+                visibility = "FullScreen";
+        }
 
     }
 
@@ -47,9 +53,8 @@ ApplicationWindow {
 
     }
 
-    GLWindow {
-        id: glWindow;
-        run: true; // default must be true
+    VideoItem {
+        id: videoItem;
         focus: true;
         anchors.fill: parent;
         systemDirectory: "C:\\Users\\lee\\Desktop";
@@ -60,11 +65,21 @@ ApplicationWindow {
                 playBtn.iconImage = "assets/play.png";
         }
 
+        onGamepadScanChanged: {
+            if (gamepadScan) {
+                //run = false;
+                scanGamePad();
+                //run = true;
+            }
+        }
 
+        onWindowVisibilityChanged: {
+            console.log(windowVisibility)
 
-        onWindowVisibilityChanged: visibility = windowVisibility;
+            visibility = windowVisibility;
+        }
 
-        // Eventually have GLWindow not load anything on creation
+        // Eventually have VideoItem not load anything on creation
         // Will run when core and game paths have been entered through
         // qml.
 
@@ -76,9 +91,32 @@ ApplicationWindow {
         // frontend startup. Will hopefully reduce load time of game.
 
         Component.onCompleted: {
-            libcore = "C:/Users/lee/Desktop/32_cores/snes9x_libretro.dll";
-            game = "C:/Users/lee/Documents/Emulation/SNES/Chrono Trigger (USA).sfc";
 
+            // libcore must be defined before game is,
+            // also they both must reside in Component.onCompleted {}
+            libcore = "C:/Users/lee/Desktop/32_cores/bsnes_balanced_libretro.dll";
+            game = "C:/Users/lee/Documents/Emulation/SNES/Legend of Zelda, The - A Link to the Past (USA).sfc";
+
+            // run must be defined here
+            run = true;
+
+        }
+
+    }
+
+    Text {
+        id: fpsCounter;
+        text: "FPS: " + videoItem.fps;
+        color: "#f1f1f1";
+        font.pointSize: 16;
+        style: Text.Outline;
+        styleColor: "black";
+
+         anchors {
+            right: parent.right;
+            top: parent.top;
+            rightMargin: 5;
+            topMargin: 5;
         }
 
     }
@@ -95,6 +133,45 @@ ApplicationWindow {
             right: parent.right;
             rightMargin: 175;
             bottomMargin: 25;
+        }
+
+        MouseArea {
+            anchors.fill: parent;
+            hoverEnabled: true;
+            onEntered: mouseTimer.stop();
+            onExited: mouseTimer.restart();
+        }
+
+        ListView {
+            anchors {
+                fill: parent;
+                topMargin: 20;
+            }
+
+            model: ListModel {
+                ListElement {title: "Scan";}
+                ListElement {title: "";}
+                ListElement {title: "";}
+                ListElement {title: "";}
+
+            }
+            spacing: 20;
+            delegate: Row {
+
+                Slider {
+                    anchors.verticalCenter: parent.verticalCenter;
+                }
+
+                Button {
+                    anchors.verticalCenter: parent.verticalCenter;
+                    text: title;
+                    width: 15;
+                    height: 15;
+                    onClicked: {
+                        videoItem.gamepadScan = true;
+                    }
+                }
+            }
         }
 
     }
@@ -114,9 +191,11 @@ ApplicationWindow {
         radius: 4
 
         MouseArea {
+
             anchors.fill: parent;
             hoverEnabled: true
-            onEntered: toolBar.visible = true;
+            onEntered: mouseTimer.stop();
+            onExited: mouseTimer.restart();
         }
         //border.width: 1
         //border.color: "white"
@@ -164,12 +243,10 @@ ApplicationWindow {
                         }
                     }
                     onClicked:  {
-                        if (glWindow.run) {
-                            glWindow.run = false
-                        }
-                        else {
-                            glWindow.run = true;
-                        }
+                        if (videoItem.run)
+                            videoItem.run = false
+                        else
+                            videoItem.run = true;
                     }
 
                 }
@@ -216,12 +293,6 @@ ApplicationWindow {
                             sourceSize.height: 25;
                         }
                     }
-                    onClicked: {
-                        if (bubbleMenu.visible)
-                            bubbleMenu.visible = false;
-                        else
-                            bubbleMenu.visible = true;
-                    }
                 }
 
                 Button {
@@ -231,6 +302,25 @@ ApplicationWindow {
                             source: "assets/star.png";
                             sourceSize.width: 25;
                             sourceSize.height: 25;
+                        }
+                    }
+                }
+
+                Button {
+                    id: gamepadBtn;
+                    style: ButtonStyle {
+                        background: Image {
+                            source: "assets/game-controller-b.png";
+                            sourceSize.width: 25;
+                            sourceSize.height: 25;
+                        }
+                    }
+                    onClicked: {
+                        bubbleMenu.anchors.rightMargin = 100;
+                        if (bubbleMenu.visible)
+                            bubbleMenu.visible = false;
+                        else {
+                            bubbleMenu.visible = true;
                         }
                     }
                 }

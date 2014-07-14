@@ -1,29 +1,42 @@
+
 TEMPLATE = app
 TARGET = phoenix
-#CONFIG +=
+INCLUDEPATH += ./include
+CONFIG += debug console c++11
 
 QT += widgets core gui multimedia qml quick
-LIBS += -LC:/SFML-2.0/lib
 
-CONFIG(release, debug|release): LIBS += -lsfml-audio -lsfml-graphics -lsfml-main -lsfml-network -lsfml-window -lsfml-system
-CONFIG(debug, debug|release): LIBS += -lsfml-audio-d -lsfml-graphics-d -lsfml-main-d -lsfml-network-d -lsfml-window-d -lsfml-system-d
+VERSION = 0.1
 
+DEFINES += '"PHOENIX_VERSION=\\"$$VERSION\\""'
 
-INCLUDEPATH += C:/SFML-2.0/include ./include ../RetroArch
-DEPENDPATH += C:/Users/robert/Downloads/SFML-master/SFML-master/include
+LIBS += -lSDL2
 
-HEADERS += include/core.h       \
-           include/video-gl.h   \
-           include/audio.h      \
-           include/audioio.h    \
-           include/input-gamepad.h
+win32 {
+    LIBS += -LC:/SDL2/lib
+    LIBS += -lmingw32 -lSDL2main -lSDL2
 
-SOURCES += src/main.cpp     \
-           src/video-gl.cpp \
-           src/core.cpp     \
-           src/audio.cpp    \
-           src/audioio.cpp  \
-           src/input-gamepad.cpp
+    DEFINES += SDL_WIN
+    INCLUDEPATH += C:/SDL2/include
+}
 
+HEADERS += include/core.h        \
+           include/videoitem.h   \
+           include/audio.h       \
+           include/audiobuffer.h \
+           include/joystick.h    \
+           include/sdljoystick.h \
+           include/logging.h     \
+           include/inputmanager.h
+
+SOURCES += src/main.cpp          \
+           src/videoitem.cpp     \
+           src/core.cpp          \
+           src/audio.cpp         \
+           src/audiobuffer.cpp   \
+           src/sdljoystick.cpp   \
+           src/joystick.cpp      \
+           src/logging.cpp       \
+           src/inputmanager.cpp
 
 RESOURCES = qml.qrc
