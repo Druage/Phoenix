@@ -1,20 +1,22 @@
 #ifndef KEYBOARD_H
 #define KEYBOARD_H
 
-#include "Core.h"
+#include <QKeyEvent>
 
-class KeyBoard {
+#include "inputdevice.h"
 
+
+class Keyboard : public InputDevice
+{
 public:
-    KeyBoard();
+    Keyboard();
+    virtual ~Keyboard();
 
-
-signals:
-
-public slots:
-
-private:
+    // process QKeyEvent sent from some widget/window
+    // as a button press in this virtual Input Device
+    void processKeyEvent(QKeyEvent *event);
 
 };
+
 
 #endif // KEYBOARD_H

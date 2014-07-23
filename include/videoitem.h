@@ -11,14 +11,15 @@
 #include <QImage>
 #include <QWindow>
 #include <QByteArray>
+#include <QSGTexture>
 #include <QEvent>
-#include <QLinkedList>
 
 #include "qdebug.h"
 #include "core.h"
 #include "audio.h"
-#include "sdljoystick.h"
+#include "keyboard.h"
 #include "logging.h"
+
 
 class VideoItem : public QQuickItem {
     Q_OBJECT
@@ -26,10 +27,11 @@ class VideoItem : public QQuickItem {
     Q_PROPERTY(QString libcore READ libcore WRITE setCore NOTIFY libcoreChanged)
     Q_PROPERTY(QString game READ game WRITE setGame NOTIFY gameChanged)
     Q_PROPERTY(bool run READ run WRITE setRun NOTIFY runChanged)
-    Q_PROPERTY(QWindow::Visibility windowVisibility READ windowVisibility WRITE setWindowVisibility NOTIFY windowVisibilityChanged)
+    Q_PROPERTY(bool setWindowed READ setWindowed WRITE setWindowed NOTIFY setWindowedChanged)
     Q_PROPERTY(QString systemDirectory READ systemDirectory WRITE setSystemDirectory NOTIFY systemDirectoryChanged)
-    Q_PROPERTY(bool gamepadScan READ gamepadScan WRITE setGamePadScan NOTIFY gamepadScanChanged)
+    Q_PROPERTY(QString saveDirectory READ saveDirectory  WRITE setSaveDirectory NOTIFY systemDirectoryChanged)
     Q_PROPERTY(int fps READ fps NOTIFY fpsChanged)
+    Q_PROPERTY(qreal volume READ volume WRITE setVolume NOTIFY volumeChanged)
 
 
 public:
@@ -41,11 +43,11 @@ public:
     void setCore(QString libcore);
     void setGame(QString game);
     void setRun(bool run );
-    void setWindowVisibility(QWindow::Visibility windowVisibility);
+    void setWindowed(bool setWindowed);
     void setSystemDirectory(QString systemDirectory);
-    void setTexture(QOpenGLTexture::Filter min_scale,
-                    QOpenGLTexture::Filter max_scale);
-    void setGamePadScan(bool gamepadScan);
+    void setSaveDirectory(QString saveDirectory);
+    void setTexture(QSGTexture::Filtering filter);
+    void setVolume(qreal volume);
 
 
     QString libcore() const {
@@ -60,20 +62,24 @@ public:
         return m_run;
     }
 
-    QWindow::Visibility windowVisibility() const {
-        return m_win_visibility;
+    bool setWindowed() const {
+        return m_set_windowed;
     }
 
     QString systemDirectory() const {
         return m_system_directory;
     }
 
-    bool gamepadScan() const {
-        return m_gamepad_scan;
+    QString saveDirectory() const {
+        return m_save_directory;
     }
 
     int fps() const {
         return m_fps;
+    }
+
+    qreal volume() const {
+        return m_volume;
     }
 
 
@@ -96,14 +102,17 @@ signals:
     void libcoreChanged(QString);
     void gameChanged(QString);
     void runChanged(bool);
-    void windowVisibilityChanged(QWindow::Visibility);
+    void setWindowedChanged(bool);
     void systemDirectoryChanged();
-    void gamepadScanChanged(bool);
+    void saveDirectoryChanged();
     void fpsChanged(int);
+    void volumeChanged(qreal);
 
 public slots:
     void paint();
     void cleanup();
+    void saveGameState();
+    void loadGameState();
 
 private slots:
     void handleWindowChanged(QQuickWindow *win);
@@ -123,7 +132,7 @@ private:
     // Video
     // [1]
     QOpenGLShaderProgram *m_program;
-    QOpenGLTexture *m_texture;
+    QSGTexture *texture_node;
     Core *core;
     int item_w;
     int item_h;
@@ -138,12 +147,13 @@ private:
     // Qml defined variables
     // [2]
     QString m_system_directory;
+    QString m_save_directory;
     QString m_libcore;
     QString m_game;
-    QWindow::Visibility m_win_visibility;
+    bool m_set_windowed;
     bool m_run;
-    bool m_gamepad_scan;
     int m_fps;
+    qreal m_volume;
     //[2]
 
     // Audio
@@ -154,12 +164,9 @@ private:
 
     // Input
     // [4]
-    unsigned id;
-    unsigned device;
-    unsigned port;
-    bool is_pressed;
-    uint32_t index;
+    Keyboard *keyboard;
     //[4]
+
 
     void refreshItemGeometry(); // called every time the item's with/height/x/y change
 

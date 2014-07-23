@@ -1,53 +1,32 @@
+
 #include "inputmanager.h"
 
-InputManager::InputManager() {
-    joysticks.clear();
-    connect(&timer, SIGNAL(timeout()), this, SLOT(getDeviceEvents()));
 
+InputManager::InputManager()
+{
 }
 
-InputManager::~InputManager() {
-
-    stopTimer();
-
+InputManager::~InputManager()
+{
+    devices.clear(); // XXX: MEMORY LEAK ??
 }
 
-void InputManager::append(InputDevice *device) {
-
-    joysticks.push_back(device);
-
+void InputManager::append(InputDevice *device)
+{
+    devices.push_back(device);
 }
 
-InputDevice * InputManager::getDevice(unsigned port) {
-
-    current_port = port;
-
-    return joysticks.at(port);
-
+InputDevice *InputManager::getDevice(unsigned port) const
+{
+    return devices.at(port);
 }
 
-void InputManager::startTimer(int mili_secs) {
-
-    timer.start(mili_secs);
-
+QList<InputDevice *> InputManager::getDevices() const
+{
+    return devices;
 }
 
-void InputManager::stopTimer() {
-
-    timer.stop();
-
-}
-
-// Sets how number of joysticks to iterate over to find presses
-// Set to -1 to process every available joystick
-void InputManager::getDeviceEvents() {
-
-    sdl_joystick.onProcessEvent(joysticks);
-
-}
-
-void InputManager::scanDevices() {
-
-    joysticks = sdl_joystick.onScan();
-
+void InputManager::scanDevices()
+{
+    devices.insert(0, new Joystick());
 }

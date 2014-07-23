@@ -13,11 +13,13 @@
 #include <QImage>
 #include <QMap>
 #include <QLibrary>
+#include <QObject>
 
 #include "libretro.h"
 #include "audiobuffer.h"
 #include "logging.h"
 #include "inputmanager.h"
+#include "keyboard.h"
 
 // Helper for resolving libretro methods
 #define resolved_sym( name ) symbols->name = ( decltype( symbols->name ) )libretro_core->resolve( #name );
@@ -78,6 +80,8 @@ public:
     LibretroSymbols *getSymbols();
     QByteArray getLibraryName() { return library_name; };
     AudioBuffer *audio_buf;
+    bool saveGameState(QString save_path, QString game_name);
+    bool loadGameState(QString save_path, QString game_name);
     
     // Video
     retro_hw_render_callback getHWData() const { return hw_callback; };
@@ -104,6 +108,7 @@ public:
 
     // System
     void setSystemDirectory(QString system_directory);
+    void setSaveDirectory(QString save_directory);
 
     // Timing
     double getFps() const { return system_av_info->timing.fps; };
@@ -112,7 +117,6 @@ public:
 
     // Input
     InputManager *getInputManager();
-
     // Initilization methods
     bool loadCore(const char * path);
     bool loadGame(const char * path);
@@ -192,6 +196,7 @@ private:
     retro_hw_render_callback hw_callback;
     bool full_path_needed;
     QByteArray system_directory;
+    QByteArray save_directory;
     
     // Game
     QByteArray game_data;
@@ -211,10 +216,11 @@ private:
 
     // Input
     InputManager *input_manager;
-    QThread input_thread;
 
     // Timing
     bool is_dupe_frame;
+
+    // Misc
 
     // Callbacks
     static void audioSampleCallback(int16_t left, int16_t right);

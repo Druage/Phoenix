@@ -21,7 +21,8 @@ public:
     void start();
     void setFormat(QAudioFormat _afmt);
 
-    AudioBuffer* abuf() const {
+    AudioBuffer* abuf() const
+    {
         return m_abuf;
     }
 
@@ -29,7 +30,8 @@ signals:
     void formatChanged();
 
 public slots:
-    void stateChanged(QAudio::State s) {
+    void stateChanged(QAudio::State s)
+    {
         if(s == QAudio::IdleState && aout->error() == QAudio::UnderrunError) {
             aio = aout->start();
         }
@@ -39,6 +41,7 @@ public slots:
     }
 
     void runChanged(bool isRunning);
+    void setVolume(qreal level);
 
 private slots:
     void threadStarted();

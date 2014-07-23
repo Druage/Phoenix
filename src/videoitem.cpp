@@ -1,42 +1,46 @@
 
 #include "videoitem.h"
 
-VideoItem::VideoItem() {
+// For dynamic sync control
+// rate_mod = 1 + d * (writeable_size - buffer_size / 2)
+
+
+
+VideoItem::VideoItem()
+{
 
     core = new Core();
 
-    m_program = 0;
-    m_texture = 0;
+    m_program = nullptr;
+    texture_node = nullptr;
     m_libcore = "";
-    m_game = "";
-    m_gamepad_scan = false;
-
-
-    id = 0;
-    device = RETRO_DEVICE_JOYPAD;
-    port = 0;
-    is_pressed = true;
-    index = 0;
 
     audio = new Audio();
     Q_CHECK_PTR(audio);
     audio->start();
     core->audio_buf = audio->abuf();
+    m_volume = 0.0;
+
+    keyboard = new Keyboard();
+    core->getInputManager()->append(keyboard);
 
     connect(&fps_timer, SIGNAL(timeout()), this, SLOT(updateFps()));
     frame_timer.invalidate();
     fps_deviation = 0;
 
     connect(this, SIGNAL(runChanged(bool)), audio, SLOT(runChanged(bool)));
+    connect(this, SIGNAL(volumeChanged(qreal)), audio, SLOT(setVolume(qreal)));
     connect(this, SIGNAL(windowChanged(QQuickWindow*)), this, SLOT(handleWindowChanged(QQuickWindow*)));
 }
 
-VideoItem::~VideoItem() {
+VideoItem::~VideoItem()
+{
+    delete keyboard;
     delete core;
     if (m_program)
         delete m_program;
-    if (m_texture)
-        delete m_texture;
+    if (texture_node)
+        delete texture_node;
 }
 
 void VideoItem::handleWindowChanged(QQuickWindow *win)
@@ -58,44 +62,80 @@ void VideoItem::handleWindowChanged(QQuickWindow *win)
     }
 }
 
-void VideoItem::handleSceneGraphInitialized() {
+void VideoItem::handleSceneGraphInitialized()
+{
     refreshItemGeometry();
-    // initialize m_texture with an empty 1x1 black image
+    // initialize texture_node with an empty 1x1 black image
     QImage emptyImage(1, 1, QImage::Format_RGB32);
     emptyImage.fill(Qt::black);
-    m_texture = new QOpenGLTexture(emptyImage);
+    texture_node = window()->createTextureFromImage(emptyImage);
 }
 
-void VideoItem::setWindowVisibility(QWindow::Visibility windowVisibility) {
+void VideoItem::setWindowed(bool windowVisibility)
+{
 
-    m_win_visibility = windowVisibility;
-    emit windowVisibilityChanged( windowVisibility );
+    m_set_windowed = windowVisibility;
+    emit setWindowedChanged( windowVisibility );
 
 }
 
-void VideoItem::setSystemDirectory(QString systemDirectory) {
+void VideoItem::setVolume(qreal volume)
+{
+    m_volume = volume;
+    emit volumeChanged(volume);
 
+}
+
+void VideoItem::setSystemDirectory(QString systemDirectory)
+{
+    m_system_directory = systemDirectory;
     core->setSystemDirectory(systemDirectory);
 
 }
 
-void VideoItem::setGamePadScan(bool gamepadScan) {
-    m_gamepad_scan = gamepadScan;
-    emit gamepadScanChanged(gamepadScan);
+void VideoItem::setSaveDirectory(QString saveDirectory)
+{
+    m_save_directory = saveDirectory;
+    core->setSaveDirectory(saveDirectory);
+
 }
 
-void VideoItem::setCore(QString libcore) {
+void VideoItem::saveGameState()
+{
+    QFileInfo info(m_game);
+    if (m_game != "" && m_libcore != "")
+        core->saveGameState(m_save_directory, info.baseName());
+
+}
+
+void VideoItem::loadGameState()
+{
+    QFileInfo info(m_game);
+    if (core->loadGameState(m_save_directory, info.baseName())) {
+        qDebug() << "Save State loaded";
+    }
+}
+
+void VideoItem::setCore(QString libcore)
+{
+    if (libcore == "")
+        return;
     qCDebug(phxVideo) << "Loading core:" << libcore;
     if (!core->loadCore(libcore.toStdString().c_str())) {
         qCCritical(phxVideo, "Couldn't load core !");
 //        exit(EXIT_FAILURE);
     }
+
     const retro_system_info *i = core->getSystemInfo();
     qCDebug(phxVideo) << "Loaded core" << i->library_name << i->library_version;
     emit libcoreChanged(libcore);
 }
 
-void VideoItem::setGame(QString game) {
+void VideoItem::setGame(QString game)
+{
+    if (game == "")
+        return;
+    m_game = game;
     qCDebug(phxVideo) << "Loading game:" << game;
     if (!core->loadGame(game.toStdString().c_str())) {
         qCCritical(phxVideo, "Couldn't load game !");
@@ -108,7 +148,8 @@ void VideoItem::setGame(QString game) {
 }
 
 
-void VideoItem::setRun(bool run) {
+void VideoItem::setRun(bool run)
+{
     m_run = run;
     if (run) {
         qCDebug(phxVideo, "Core started");
@@ -119,7 +160,8 @@ void VideoItem::setRun(bool run) {
     emit runChanged(run);
 }
 
-void VideoItem::updateAudioFormat() {
+void VideoItem::updateAudioFormat()
+{
     QAudioFormat format;
     format.setSampleSize(16);
     format.setSampleRate(core->getSampleRate());
@@ -131,18 +173,14 @@ void VideoItem::updateAudioFormat() {
     audio->setFormat(format);
 }
 
-void VideoItem::keyEvent(QKeyEvent *event) {
-
-    //id = 16;
-    //device = RETRO_DEVICE_JOYPAD;
-    //port = 0;
-    is_pressed = (event->type() == QEvent::KeyPress) ? true : false;
-    //index = 0;
+void VideoItem::keyEvent(QKeyEvent *event)
+{
+    bool is_pressed = (event->type() == QEvent::KeyPress) ? true : false;
 
     switch(event->key()) {
         case Qt::Key_Escape:
             if(is_pressed)
-                emit windowVisibilityChanged(QWindow::Windowed);
+                emit setWindowedChanged(true);
             break;
         case Qt::Key_Space:
             if(is_pressed) {
@@ -152,16 +190,20 @@ void VideoItem::keyEvent(QKeyEvent *event) {
                     setRun(true);
             }
             break;
-
-        default:
-            if(is_pressed)
-                qDebug() << "Key not handled";
-            break;
     }
 
+    // we also pass every KeyEvent to each connected InputDevice which is a Keyboard.
+    // a bit ugly, but this avoid overhead of signal/slots and event filters
+    QList<InputDevice *> devices = core->getInputManager()->getDevices();
+    for (int i=0; i < devices.size(); ++i) {
+        auto keyboardinput = dynamic_cast<Keyboard *>(devices.at(i));
+        if (keyboardinput != nullptr)
+            keyboardinput->processKeyEvent(event);;
+    }
 }
 
-void VideoItem::refreshItemGeometry() {
+void VideoItem::refreshItemGeometry()
+{
     qreal pixel_ratio = window()->devicePixelRatio();
     item_w = int(pixel_ratio * width());
     item_h = int(pixel_ratio * height());
@@ -171,8 +213,8 @@ void VideoItem::refreshItemGeometry() {
     viewportXY.setY(window()->height() - viewportXY.y());
 }
 
-void VideoItem::initGL() {
-
+void VideoItem::initGL()
+{
     qreal desired_aspect = core->getAspectRatio();
     ulong core_w = item_h * desired_aspect;
     ulong core_h = item_w / desired_aspect;
@@ -205,7 +247,8 @@ void VideoItem::initGL() {
 
 }
 
-void VideoItem::initShader() {
+void VideoItem::initShader()
+{
     m_program = new QOpenGLShaderProgram();
     m_program->addShaderFromSourceCode(QOpenGLShader::Vertex,
                                        "attribute highp vec4 vertices;"
@@ -235,25 +278,27 @@ void VideoItem::initShader() {
 
 }
 
-void VideoItem::setTexture(QOpenGLTexture::Filter min_scale, QOpenGLTexture::Filter max_scale) {
-
-
+void VideoItem::setTexture(QSGTexture::Filtering filter)
+{
     QImage::Format frame_format = retroToQImageFormat(core->getPixelFormat());
 
-    m_texture->destroy();
-    m_texture->setData(QImage((const uchar *)core->getImageData(),
-                       core->getBaseWidth(),
-                       core->getBaseHeight(),
-                       core->getPitch(),
-                       frame_format).mirrored());
+    texture_node->deleteLater();
+    texture_node = window()->createTextureFromImage(QImage((const uchar *)core->getImageData(),
+                                                        core->getBaseWidth(),
+                                                        core->getBaseHeight(),
+                                                        core->getPitch(),
+                                                        frame_format).mirrored()
+                                                    , QQuickWindow::TextureOwnsGLTexture);
 
-    m_texture->setMinMagFilters(min_scale, max_scale);
+    texture_node->setFiltering(filter);
 
-    m_texture->setWrapMode(QOpenGLTexture::ClampToEdge);
+    texture_node->setHorizontalWrapMode(QSGTexture::ClampToEdge);
+    texture_node->setVerticalWrapMode(QSGTexture::ClampToEdge);
 
 }
 
-inline bool VideoItem::limitFps() {
+inline bool VideoItem::limitFps()
+{
     qreal target_fps_interval = round(1000000.0 / core->getFps()); // µsec
     if (!frame_timer.isValid()) {
         frame_timer.start();
@@ -279,21 +324,22 @@ inline bool VideoItem::limitFps() {
     return false;
 }
 
-void VideoItem::paint() {
-
+void VideoItem::paint()
+{
     if (m_run && !limitFps()) {
         core->doFrame();
         fps_count++;
 
         // Sets texture from core->getImageData();
-        setTexture( QOpenGLTexture::Linear, QOpenGLTexture::LinearMipMapNearest );
+        setTexture(QSGTexture::Linear);
     }
+
 
     // Sets viewport size, and enables / disables opengl functionality.
     initGL();
 
     // Binds texture to opengl context
-    m_texture->bind();
+    texture_node->bind();
 
     if (!m_program) {
         // constructs vertex & frag shaders and links them.
@@ -337,7 +383,6 @@ void VideoItem::paint() {
     m_program->disableAttributeArray(0);
     m_program->disableAttributeArray(1);
     m_program->release();
-    m_texture->release();
 
     // Loop forever;
     window()->update();
@@ -350,8 +395,8 @@ void VideoItem::cleanup()
         delete m_program;
         m_program = nullptr;
     }
-    if (m_texture) {
-        delete m_texture;
-        m_texture = nullptr;
+    if (texture_node) {
+        delete texture_node;
+        texture_node = nullptr;
     }
 }

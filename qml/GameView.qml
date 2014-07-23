@@ -1,4 +1,4 @@
-import QtQuick 2.2
+import QtQuick 2.3
 import QtQuick.Controls 1.1
 import QtQuick.Controls.Styles 1.1
 import QtQuick.Layouts 1.1
@@ -6,13 +6,26 @@ import QtGraphicalEffects 1.0
 
 import VideoItem 1.0
 
-ApplicationWindow {
-    id: root;
+Item {
+    id: gameView;
     width: 800;
     height: 600;
     visible: true;
-    visibility: "Windowed";
-    title: "Phoenix";
+    property bool run: false;
+    property string gameName: "";
+    property string coreName: "";
+    property string systemDirectory: "";
+    property string saveDirectory: "";
+    property bool loadSaveState: false
+    property real volumeLevel: 1.0;
+
+    onLoadSaveStateChanged: {
+        if (loadSaveState)
+            videoItem.loadGameState();
+    }
+
+    //visibility: "Windowed";
+    //title: "Phoenix";
 
     MouseArea {
         id: rootMouse;
@@ -22,8 +35,9 @@ ApplicationWindow {
         onMouseXChanged: {
             if (cursorShape !== Qt.ArrowCursor)
                 cursorShape = Qt.ArrowCursor;
-            if (!toolBar.visible)
+            if (!toolBar.visible) {
                 toolBar.visible = true;
+            }
 
 
             mouseTimer.restart();
@@ -39,14 +53,17 @@ ApplicationWindow {
 
     Timer {
         id: mouseTimer;
-        interval: 2000;
+        interval: 4000;
         running: true;
 
         onTriggered: {
             rootMouse.cursorShape = Qt.BlankCursor;
             if (bubbleMenu.visible)
                 bubbleMenu.visible = false;
-
+            if (volumeDropDown.visible) {
+                volumeDropDown.visible = false;
+                volumeBtn.checked = false;
+            }
 
             toolBar.visible = false;
         }
@@ -57,49 +74,28 @@ ApplicationWindow {
         id: videoItem;
         focus: true;
         anchors.fill: parent;
-        systemDirectory: "C:\\Users\\lee\\Desktop";
+        systemDirectory: gameView.systemDirectory;
+        saveDirectory: gameView.saveDirectory;
+        game: gameView.gameName;
+        libcore: gameView.coreName;
+        run: gameView.run;
+        volume: gameView.volumeLevel;
         onRunChanged: {
             if (run)
-                playBtn.iconImage = "assets/pause.png";
+                playBtn.iconImage = "/assets/GameView/pause.png";
             else
-                playBtn.iconImage = "assets/play.png";
+                playBtn.iconImage = "/assets/GameView/play.png";
         }
 
-        onGamepadScanChanged: {
-            if (gamepadScan) {
-                //run = false;
-                scanGamePad();
-                //run = true;
-            }
+
+        onSetWindowedChanged: {
+            if (visibility != 2)
+                visibility = "Windowed";
         }
 
-        onWindowVisibilityChanged: {
-            console.log(windowVisibility)
 
-            visibility = windowVisibility;
-        }
-
-        // Eventually have VideoItem not load anything on creation
-        // Will run when core and game paths have been entered through
-        // qml.
-
-        // Each core could be it's own qml class/type, would allow easy
-        // extending through qml and keep it so we wouldn't need to
-        // touch c++ side. Just an idea.
-
-        // Also keep last used core loaded on
-        // frontend startup. Will hopefully reduce load time of game.
-
-        Component.onCompleted: {
-
-            // libcore must be defined before game is,
-            // also they both must reside in Component.onCompleted {}
-            libcore = "C:/Users/lee/Desktop/32_cores/bsnes_balanced_libretro.dll";
-            game = "C:/Users/lee/Documents/Emulation/SNES/Legend of Zelda, The - A Link to the Past (USA).sfc";
-
-            // run must be defined here
-            run = true;
-
+        Component.onDestruction: {
+            saveGameState();
         }
 
     }
@@ -120,6 +116,31 @@ ApplicationWindow {
         }
 
     }
+
+
+    Button {
+        id: backButton;
+        visible: toolBar.visible;
+        anchors {
+            left: parent.left;
+            top: parent.top;
+            leftMargin: 15;
+            topMargin: 15;
+        }
+
+        style: ButtonStyle {
+            background: Image {
+                source: "../assets/arrow-left-a.png";
+                sourceSize.width: 35;
+                sourceSize.height: 35;
+            }
+        }
+        onClicked:  {
+            gameView.run = false;
+            windowStack.push({item: homeScreen, replace: true });
+        }
+    }
+
 
     Rectangle {
         id: bubbleMenu;
@@ -167,13 +188,51 @@ ApplicationWindow {
                     text: title;
                     width: 15;
                     height: 15;
-                    onClicked: {
-                        videoItem.gamepadScan = true;
-                    }
                 }
             }
         }
 
+    }
+
+    Rectangle {
+        id: volumeDropDown;
+        color: "#363535";
+        height: 200;
+        width: 50;
+        anchors {
+            right: parent.right;
+            bottom: toolBar.top;
+            bottomMargin: 25;
+        }
+        visible: false;
+
+        MouseArea {
+            anchors.fill: parent;
+            hoverEnabled: true;
+            onEntered: mouseTimer.stop();
+            onExited: mouseTimer.restart();
+        }
+
+        Slider {
+            anchors.centerIn: parent;
+            orientation: Qt.Vertical;
+            height: parent.height * 0.8;
+            width: 5;
+            stepSize: 0.05;
+            minimumValue: 0.0;
+            maximumValue: 1.0;
+            value: gameView.volumeLevel;
+            onValueChanged: {
+                gameView.volumeLevel = value;
+                if (value > 0.8)
+                    volumeBtn.backgroundImage = "../assets/volume-high-8x.png";
+                else if (0.8 > value && value > 0.0)
+                    volumeBtn.backgroundImage = "../assets/volume-low-8x.png";
+                else if (value == 0.0)
+                    volumeBtn.backgroundImage = "../assets/volume-off-8x.png";
+
+            }
+        }
     }
 
     Rectangle {
@@ -219,21 +278,8 @@ ApplicationWindow {
                 spacing: 25;
 
                 Button {
-                    id: quitBtn;
-                    anchors.verticalCenter: parent.verticalCenter;
-                    style: ButtonStyle {
-                        background: Image {
-                            source: "assets/power.png";
-                            sourceSize.width: 20;
-                            sourceSize.height: 20;
-                        }
-                    }
-                    onClicked: Qt.quit(0);
-                }
-
-                Button {
                     id: playBtn;
-                    property string iconImage: "assets/play.png";
+                    property string iconImage: "/assets/GameView/play.png";
                     anchors.verticalCenter: parent.verticalCenter;
                     style: ButtonStyle {
                         background: Image {
@@ -265,7 +311,7 @@ ApplicationWindow {
                 /*Button {
                     id: audioBtn;
                     anchors.verticalCenter: parent.verticalCenter;
-                    property string backgroundImage: "assets/volume-mute.png"
+                    property string backgroundImage: "/assets/GameView/volume-mute.png"
                     style: ButtonStyle {
                         background: Image {
                             id: volumeBackground;
@@ -275,10 +321,10 @@ ApplicationWindow {
                         }
                     }
                     onClicked: {
-                        if (backgroundImage === "assets/volume-mute.png")
-                            backgroundImage = "assets/ios7-volume-high.png";
+                        if (backgroundImage === "/assets/GameView/volume-mute.png")
+                            backgroundImage = "/assets/GameView/ios7-volume-high.png";
                         else
-                            backgroundImage = "assets/volume-mute.png";
+                            backgroundImage = "/assets/GameView/volume-mute.png";
                     }
 
                 }*/
@@ -288,7 +334,7 @@ ApplicationWindow {
                     anchors.verticalCenter: parent.verticalCenter;
                     style: ButtonStyle {
                         background: Image {
-                            source: "assets/gear-a.png";
+                            source: "/assets/GameView/gear-a.png";
                             sourceSize.width: 25;
                             sourceSize.height: 25;
                         }
@@ -296,10 +342,58 @@ ApplicationWindow {
                 }
 
                 Button {
+                    id: saveBtn;
+                    anchors.verticalCenter: parent.verticalCenter;
+                    text: "Save";
+                    height: 15;
+                    width: 15;
+                    onClicked: videoItem.saveGameState();
+                }
+
+                Button {
+                    id: loadBtn;
+                    anchors.verticalCenter: parent.verticalCenter;
+                    text: "Load";
+                    height: 20;
+                    width: 20;
+                    onClicked: videoItem.loadGameState();
+                }
+
+
+                Button {
+                    id: volumeBtn;
+                    anchors.verticalCenter: parent.verticalCenter;
+                    height: 20;
+                    width: 20;
+                    checkable: true;
+                    checked: false;
+
+                    property string backgroundImage: "../assets/volume-high-8x.png";
+                    onCheckedChanged: {
+                        if (checked) {
+                            volumeDropDown.visible = true;
+                            volumeDropDown.anchors.rightMargin = 268;
+                        }
+                        else {
+                            volumeDropDown.visible = false;
+                        }
+                    }
+
+                    style: ButtonStyle {
+                        background: Image {
+                            source: volumeBtn.backgroundImage;
+                            sourceSize.width: 25;
+                            sourceSize.height: 25;
+                        }
+                    }
+
+                }
+
+                Button {
                     id: favoriteBtn;
                     style: ButtonStyle {
                         background: Image {
-                            source: "assets/star.png";
+                            source: "/assets/GameView/star.png";
                             sourceSize.width: 25;
                             sourceSize.height: 25;
                         }
@@ -310,7 +404,7 @@ ApplicationWindow {
                     id: gamepadBtn;
                     style: ButtonStyle {
                         background: Image {
-                            source: "assets/game-controller-b.png";
+                            source: "/assets/GameView/game-controller-b.png";
                             sourceSize.width: 25;
                             sourceSize.height: 25;
                         }
@@ -337,7 +431,7 @@ ApplicationWindow {
                     anchors.verticalCenter: parent.verticalCenter;
                     style: ButtonStyle {
                         background: Image {
-                            source: "assets/arrow-expand.png";
+                            source: "/assets/GameView/arrow-expand.png";
                             sourceSize.width: 25;
                             sourceSize.height: 25;
                         }

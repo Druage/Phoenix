@@ -4,7 +4,7 @@ TARGET = phoenix
 INCLUDEPATH += ./include
 CONFIG += debug console c++11
 
-QT += widgets core gui multimedia qml quick
+QT += widgets core gui multimedia qml quick sql
 
 VERSION = 0.1
 
@@ -20,25 +20,32 @@ win32 {
     INCLUDEPATH += C:/SDL2/include
 }
 
-HEADERS += include/core.h        \
-           include/videoitem.h   \
-           include/audio.h       \
-           include/audiobuffer.h \
-           include/joystick.h    \
-           include/sdljoystick.h \
-           include/logging.h     \
-           include/inputmanager.h\
-           include/inputdevice.h
+HEADERS += include/core.h              \
+           include/videoitem.h         \
+           include/audio.h             \
+           include/audiobuffer.h       \
+           include/sdlevents.h         \
+           include/joystick.h          \
+           include/logging.h           \
+           include/qmlsettings.h       \
+           include/inputmanager.h      \
+           include/inputdevice.h       \
+           include/keyboard.h          \
+           include/librarydbmanager.h  \
+           include/gamelibrarymodel.h  \
 
-SOURCES += src/main.cpp          \
-           src/videoitem.cpp     \
-           src/core.cpp          \
-           src/audio.cpp         \
-           src/audiobuffer.cpp   \
-           src/sdljoystick.cpp   \
-           src/joystick.cpp      \
-           src/logging.cpp       \
-           src/inputmanager.cpp  \
-           src/inputdevice.cpp
+SOURCES += src/main.cpp                \
+           src/videoitem.cpp           \
+           src/core.cpp                \
+           src/audio.cpp               \
+           src/audiobuffer.cpp         \
+           src/sdlevents.cpp           \
+           src/joystick.cpp            \
+           src/logging.cpp             \
+           src/inputmanager.cpp        \
+           src/inputdevice.cpp         \
+           src/keyboard.cpp            \
+           src/librarydbmanager.cpp    \
+           src/gamelibrarymodel.cpp    \
 
-RESOURCES = qml.qrc
+RESOURCES = qml/qml.qrc assets/assets.qrc
