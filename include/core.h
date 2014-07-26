@@ -12,6 +12,9 @@
 #include <QByteArray>
 #include <QImage>
 #include <QMap>
+#include <QQuickWindow>
+#include <QOpenGLContext>
+#include <QOpenGLFramebufferObject>
 #include <QLibrary>
 #include <QObject>
 
@@ -85,6 +88,12 @@ public:
     
     // Video
     retro_hw_render_callback getHWData() const { return hw_callback; };
+
+    void setVideoWindow(QQuickWindow *window);
+    static retro_proc_address_t getProcAddress(const char *sym);
+    static uintptr_t getCurrentFBO();
+
+
     const void *getImageData() const { return video_data; };
     unsigned getBaseWidth() const { return video_width; };
     unsigned getBaseHeight() const { return video_height; };
@@ -202,6 +211,7 @@ private:
     QByteArray game_data;
     
     // Video
+    QQuickWindow *m_video_window;
     unsigned video_height;
     const void *video_data;
     size_t video_pitch;

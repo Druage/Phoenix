@@ -5,7 +5,7 @@
 #include <QtQuick/QQuickItem>
 #include <QtQuick/qquickwindow.h>
 #include <QtGui/QOpenGLShaderProgram>
-#include <QtGui/QOpenGLShaderProgram>
+#include <QOpenGLFramebufferObject>
 #include <QtGui/QOpenGLContext>
 #include <QOpenGLTexture>
 #include <QImage>
@@ -38,6 +38,10 @@ public:
     VideoItem();
     ~VideoItem();
 
+    QOpenGLFramebufferObject *frame_buffer;
+
+
+    QQuickWindow *setWindow();
     void initShader();
     void initGL();
     void setCore(QString libcore);
@@ -46,8 +50,9 @@ public:
     void setWindowed(bool setWindowed);
     void setSystemDirectory(QString systemDirectory);
     void setSaveDirectory(QString saveDirectory);
-    void setTexture(QSGTexture::Filtering filter);
+    void setTexture();
     void setVolume(qreal volume);
+    uintptr_t getCurrentFrameBuffer(void);
 
 
     QString libcore() const {
@@ -132,7 +137,7 @@ private:
     // Video
     // [1]
     QOpenGLShaderProgram *m_program;
-    QSGTexture *texture_node;
+    QOpenGLTexture *texture;
     Core *core;
     int item_w;
     int item_h;

@@ -1,18 +1,14 @@
 
 #include "videoitem.h"
 
-// For dynamic sync control
-// rate_mod = 1 + d * (writeable_size - buffer_size / 2)
-
 
 
 VideoItem::VideoItem()
 {
-
     core = new Core();
 
     m_program = nullptr;
-    texture_node = nullptr;
+    texture = nullptr;
     m_libcore = "";
 
     audio = new Audio();
@@ -39,8 +35,8 @@ VideoItem::~VideoItem()
     delete core;
     if (m_program)
         delete m_program;
-    if (texture_node)
-        delete texture_node;
+    if (texture)
+        delete texture;
 }
 
 void VideoItem::handleWindowChanged(QQuickWindow *win)
@@ -62,13 +58,21 @@ void VideoItem::handleWindowChanged(QQuickWindow *win)
     }
 }
 
+uintptr_t VideoItem::getCurrentFrameBuffer()
+{
+    return window()->renderTargetId();
+}
+
 void VideoItem::handleSceneGraphInitialized()
 {
     refreshItemGeometry();
-    // initialize texture_node with an empty 1x1 black image
+    core->setVideoWindow(window());
+
+    // initialize texture with an empty 1x1 black image
     QImage emptyImage(1, 1, QImage::Format_RGB32);
     emptyImage.fill(Qt::black);
-    texture_node = window()->createTextureFromImage(emptyImage);
+    texture = new QOpenGLTexture(emptyImage);
+    frame_buffer = new QOpenGLFramebufferObject(window()->size());
 }
 
 void VideoItem::setWindowed(bool windowVisibility)
@@ -278,22 +282,22 @@ void VideoItem::initShader()
 
 }
 
-void VideoItem::setTexture(QSGTexture::Filtering filter)
+void VideoItem::setTexture()
 {
     QImage::Format frame_format = retroToQImageFormat(core->getPixelFormat());
 
-    texture_node->deleteLater();
-    texture_node = window()->createTextureFromImage(QImage((const uchar *)core->getImageData(),
+    texture->destroy();
+    texture = new QOpenGLTexture(QImage((const uchar *)core->getImageData(),
                                                         core->getBaseWidth(),
                                                         core->getBaseHeight(),
                                                         core->getPitch(),
-                                                        frame_format).mirrored()
-                                                    , QQuickWindow::TextureOwnsGLTexture);
+                                                        frame_format).mirrored());
 
-    texture_node->setFiltering(filter);
+    //texture->setMagnificationFilter();
 
-    texture_node->setHorizontalWrapMode(QSGTexture::ClampToEdge);
-    texture_node->setVerticalWrapMode(QSGTexture::ClampToEdge);
+    texture->setWrapMode(QOpenGLTexture::ClampToEdge);
+   // texture->setHorizontalWrapMode(QSGTexture::ClampToEdge);
+    //texture->setVerticalWrapMode(QSGTexture::ClampToEdge);
 
 }
 
@@ -330,16 +334,19 @@ void VideoItem::paint()
         core->doFrame();
         fps_count++;
 
+
         // Sets texture from core->getImageData();
-        setTexture(QSGTexture::Linear);
+        setTexture();
     }
+
 
 
     // Sets viewport size, and enables / disables opengl functionality.
     initGL();
-
+    frame_buffer->bind();
     // Binds texture to opengl context
-    texture_node->bind();
+    texture->bind();
+    frame_buffer->release();
 
     if (!m_program) {
         // constructs vertex & frag shaders and links them.
@@ -365,7 +372,7 @@ void VideoItem::paint()
     };
 
     // Texture coords
-    GLfloat texture[] = {
+    GLfloat texture_points[] = {
         0, 0,
         1, 0,
         0, 1,
@@ -375,7 +382,7 @@ void VideoItem::paint()
     // Sets location 0 equal to vertices in values array
     m_program->setAttributeArray(0, QOpenGLTexture::Float32, values, 2);
 
-    m_program->setAttributeArray(1, QOpenGLTexture::Float32, texture, 2);
+    m_program->setAttributeArray(1, QOpenGLTexture::Float32, texture_points, 2);
 
     // Draws processed triangle stip onto the screen.
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -383,6 +390,7 @@ void VideoItem::paint()
     m_program->disableAttributeArray(0);
     m_program->disableAttributeArray(1);
     m_program->release();
+    texture->release();
 
     // Loop forever;
     window()->update();
@@ -395,8 +403,8 @@ void VideoItem::cleanup()
         delete m_program;
         m_program = nullptr;
     }
-    if (texture_node) {
-        delete texture_node;
-        texture_node = nullptr;
+    if (texture) {
+        delete texture;
+        texture = nullptr;
     }
 }

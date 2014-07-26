@@ -36,6 +36,7 @@ Core::Core()
     system_info = new retro_system_info();
     symbols = new LibretroSymbols;
 
+    m_video_window = nullptr;
     video_height = 0;
     video_data = nullptr;
     video_pitch = 0;
@@ -75,6 +76,25 @@ Core::~Core()
 // |     Public methods     |
 // |________________________|
 
+
+// uintptr_t
+uintptr_t Core::getCurrentFBO()
+{
+    qCDebug(phxCore) << "getting the current fbo";
+    QOpenGLContext *context = Core::core->m_video_window->openglContext();
+    qCDebug(phxCore) << "context valid? " << context->isValid();
+
+    return context->defaultFramebufferObject();
+}
+
+// QFunctionPointer = void
+retro_proc_address_t Core::getProcAddress(const char *sym)
+{
+    qCDebug(phxCore) << "getting the current proc address";
+    return Core::core->m_video_window->openglContext()->getProcAddress(sym);
+}
+
+
 bool Core::saveGameState(QString path, QString name)
 {
     size_t size = core->getSymbols()->retro_serialize_size();
@@ -101,6 +121,12 @@ bool Core::saveGameState(QString path, QString name)
     return loaded;
 
 } // Core::saveGameState(QString path, char *data, int size)
+
+void Core::setVideoWindow(QQuickWindow *window)
+{
+    qDebug() << "window is being set";
+    m_video_window = window;
+}
 
 bool Core::loadGameState(QString path, QString name)
 {
@@ -415,7 +441,9 @@ bool Core::environmentCallback(unsigned cmd, void *data)
                     qCritical() << "RETRO_HW_CONTEXT: " << Core::core->hw_callback.context_type << " was not handled";
                     return false;
             }
-            break;
+            Core::core->hw_callback.get_current_framebuffer = Core::core->getCurrentFBO;
+            Core::core->hw_callback.get_proc_address = Core::core->getProcAddress;
+            return true;
 
         case RETRO_ENVIRONMENT_GET_VARIABLE: { // 15
             auto *rv = static_cast<struct retro_variable *>(data);
