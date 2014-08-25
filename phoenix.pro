@@ -38,7 +38,8 @@ HEADERS += include/core.h                      \
            include/inputdevicemappingfactory.h \
            include/inputdevicefactory.h        \
            include/thegamesdb.h                \
-           include/cacheimage.h
+           include/cacheimage.h                \
+           include/phoenixlibrary.h
 
 SOURCES += src/main.cpp                        \
            src/videoitem.cpp                   \
@@ -56,6 +57,7 @@ SOURCES += src/main.cpp                        \
            src/gamelibrarymodel.cpp            \
            src/phoenixwindow.cpp               \
            src/thegamesdb.cpp                  \
-           src/cacheimage.cpp
+           src/cacheimage.cpp                  \
+           src/phoenixlibrary.cpp
 
-RESOURCES = qml/qml.qrc assets/assets.qrc
+RESOURCES = qml/qml.qrc assets/assets.qrc databases/databases.qrc
