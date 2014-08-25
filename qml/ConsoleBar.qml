@@ -9,8 +9,8 @@ Rectangle {
     height: 500;
     width: 250;
 
-    property real progressValue: gamelibrary.progress;
-    property string progressText: gamelibrary.label;
+    property real progressValue: phoenixLibrary.progress;
+    property string progressText: phoenixLibrary.label;
 
     ListView {
         id: listView;
@@ -102,8 +102,8 @@ Rectangle {
 
         model: ListModel {
             ListElement {title: "All"; icon: "";}
-            ListElement {title: "Nintendo"; icon: "/assets/consoleicons/nes.png";}
-            ListElement {title: "Super Nintendo"; icon: "/assets/consoleicons/snes.png";}
+            ListElement {title: "Nintendo (NES)"; icon: "/assets/consoleicons/nes.png";}
+            ListElement {title: "Super Nintendo (SNES)"; icon: "/assets/consoleicons/snes.png";}
             ListElement {title: "Nintendo 64"; icon: "/assets/consoleicons/mupen64plus.png";}
             ListElement {title: "FFmpeg"; icon: "/assets/consoleicons/ffmpeg.png";}
             ListElement {title: "Sony PlayStation"; icon: "/assets/consoleicons/ps1.png";}
