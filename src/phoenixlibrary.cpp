@@ -4,9 +4,9 @@ PhoenixLibrary::PhoenixLibrary()
 
 {
     m_start = false;
+
     import_thread = new QThread();
     import_thread->setObjectName("phoenix-scraper");
-    import_thread->setPriority(QThread::NormalPriority);
 
     m_model = new GameLibraryModel();
     scraper = new TheGamesDB();
@@ -32,8 +32,9 @@ PhoenixLibrary::~PhoenixLibrary()
 
 bool PhoenixLibrary::startImport(bool start)
 {
-    if (start)
-        import_thread->start();
+    if (start) {
+        import_thread->start(QThread::NormalPriority);
+    }
 }
 
 
@@ -144,9 +145,6 @@ void PhoenixLibrary::scanFolder()
 
     database.transaction();
 
-
-    bool data_changed = false;
-
     int m_file_count = files.size();
     qreal count = static_cast<qreal>(m_file_count);
 
@@ -156,41 +154,42 @@ void PhoenixLibrary::scanFolder()
     for (qreal i=0; i < count; ++i) {
 
         QFileInfo file_info = files.at(i);
-
-
         QString system = getSystem(file_info.suffix());
 
-
-
         if (system != "") {
+            GameData game_data;
+            scraper = new TheGamesDB(this, &game_data);
+            scraper->setGameName(file_info.baseName());
+            scraper->setGamePlatform(system);
+            scraper->start();
 
-            GameData data = scraper->getAllData(file_info.baseName(), system);
-
-            QCryptographicHash sha1_gen(QCryptographicHash::Md5);
 
             query.prepare("INSERT INTO games (title, console, time_played, artwork)"
             " VALUES (?, ?, ?, ?)");
 
+
              QString system = getSystem(file_info.suffix());
-            //QString xml_file =  QString((":/databases/%1.xml")).arg(system);
 
-            //QResource resource(xml_file);
 
-             if (data.title != "")
-                 query.bindValue(0, data.title);
+             if (game_data.title != "")
+                 query.bindValue(0, game_data.title);
              else
                  query.bindValue(0, file_info.baseName());
-             if (data.front_boxart != "")
-                 query.bindValue(3, data.front_boxart);
+             if (game_data.front_boxart != "")
+                 query.bindValue(3, game_data.front_boxart);
              else
                  query.bindValue(3, "qrc:/assets/No-Art.png");
 
              query.bindValue(1, system);
              query.bindValue(2, "0h 0m 0s");
 
+            /*
+            QCryptographicHash sha1_gen(QCryptographicHash::Md5);
+            QString xml_file =  QString((":/databases/%1.xml")).arg(system);
+            QResource resource(xml_file);
+            QFile in_file(file_info.absoluteFilePath());
 
-            //QFile in_file(file_info.absoluteFilePath());
-            /*if (in_file.open(QIODevice::ReadOnly)) {
+            if (in_file.open(QIODevice::ReadOnly)) {
                 QByteArray file_data = in_file.readAll();
                 sha1_gen.addData(file_data.data(), file_data.length());
                 QString md5;
@@ -207,10 +206,9 @@ void PhoenixLibrary::scanFolder()
             else
                 qCDebug(phxLibrary) <<  "db not opened";
             */
+
             m_model->update();
-
-
-            setProgress((((i+1) / m_file_count) * 100.0));
+            setProgress((((i+1) / count) * 100.0));
 
         }
 
