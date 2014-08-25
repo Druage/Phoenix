@@ -3,17 +3,12 @@
 PhoenixLibrary::PhoenixLibrary()
 
 {
-    m_start = false;
-
     import_thread = new QThread();
     import_thread->setObjectName("phoenix-scraper");
 
     m_model = new GameLibraryModel();
-    scraper = new TheGamesDB();
-    scraper->moveToThread(import_thread);
 
     connect(import_thread, SIGNAL(started()), this, SLOT(scanFolder()));
-    connect(this, SIGNAL(destroyed()), import_thread, SLOT(deleteLater()));
     connect(import_thread, SIGNAL(finished()), import_thread, SLOT(deleteLater()));
 }
 
