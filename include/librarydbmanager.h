@@ -5,7 +5,8 @@
 #include <QSqlDatabase>
 
 
-class LibraryDbManager {
+class LibraryDbManager
+{
 public:
     LibraryDbManager() {};
     ~LibraryDbManager() {}

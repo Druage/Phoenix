@@ -8,7 +8,5 @@
     <file>main.qml</file>
     <file>SettingsButton.qml</file>
     <file>SettingsWindow.qml</file>
-    <file>SideHandle.qml</file>
-    <file>CornerHandle.qml</file>
 </qresource>
 </RCC>

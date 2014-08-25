@@ -6,69 +6,193 @@ import QtGraphicalEffects 1.0
 import QtQuick.Dialogs 1.1
 import QtQuick.Window 2.0
 import Qt.labs.settings 1.0
+import phoenix.window 1.0
 
-ApplicationWindow {
+PhoenixWindow {
     id: root;
     width: 640
     height: 480
+    minimumHeight: 480;
+    minimumWidth: 640;
 
     title: "Phoenix";
-    flags: "FramelessWindowHint";
-    color: "#000000FF";
 
-    property bool clear: true;
+    property bool clear: false;
     property string accentColor:"#b85353";
 
-    //onVisibilityChanged: {
-        //if (visibility === 5)
-            //shownWindow.anchors.margins = 0;
-   // }
-
-    SideHandle {
-        id: rightSide;
-        anchors {
-            right: parent.right;
-            top: parent.top;
-            bottom: parent.bottom;
-        }
-        width: 5;
-    }
-
-    SideHandle {
-        id: leftSide;
-        anchors {
-            left: parent.left;
-            top: parent.top;
-            bottom: parent.bottom;
-        }
-        width: 5;
-
+    onWidthChanged: {
+        settingsDropDown.state = "retracted";
     }
 
 
-    Item {
-        id: shownWindow;
-        anchors {
-            fill: parent;
-            margins: 1;
+
+    MouseArea {
+        anchors.fill: parent;
+        enabled: settingsBubble.visible;
+    }
+
+    Component {
+        id: gameGrid;
+        GameGrid {
+            property string itemName: "grid";
+            color: "#1a1a1a";
+            zoomFactor: headerBar.sliderValue;
+            zoomSliderPressed: headerBar.sliderPressed;
+
         }
+    }
 
-
+    Component {
+        id: gameTable;
+        GameTable {
+            itemName: "table";
+            highlightColor: "#494545";
+            textColor: "#f1f1f1";
+            headerColor: "#252525";
+        }
+    }
 
     Settings {
         id: settings;
         category: "UI";
-        //property alias windowX: root.x;
-        //property alias windowY: root.y;
-        //property alias windowWidth: root.width;
-        //property alias windowHeight: root.height;
+        property alias windowX: root.x;
+        property alias windowY: root.y;
+        property alias windowWidth: root.width;
+        property alias windowHeight: root.height;
         property alias volumeLevel: gameView.volumeLevel;
+    }
+
+    HeaderBar {
+        id: headerBar;
+        anchors {
+            left: parent.left;
+            right: parent.right;
+            top: parent.top;
+        }
+
+        Behavior on height {
+            NumberAnimation {
+                duration: 150;
+            }
+        }
+
+        height: 50;
+        color: "#3b3b3b";
+        fontSize: 14;
+    }
+
+    Item {
+        id: settingsDropDown;
+        z: headerBar.z + 1;
+        visible: false;
+        anchors {
+            left: parent.left;
+            right: parent.right;
+            top: parent.top;
+            topMargin: 68;
+            rightMargin: 50;
+            bottom: parent.bottom;
+            bottomMargin: 50;
+        }
+        width: 50;
+
+        Rectangle {
+            visible: parent.visible;
+            opacity: parent.visible ? 1.0 : 0.0;
+            height: 22;
+            width: 22;
+            rotation: 45;
+            color: settingsBubble.stackBackgroundColor;
+
+            Behavior on opacity {
+                NumberAnimation {
+                    easing {
+                        type: Easing.OutQuad;
+                    }
+                    duration: 200;
+                }
+            }
+
+            anchors {
+                left: parent.left;
+                leftMargin: 23;
+                verticalCenter: settingsBubble.top;
+            }
+
+        }
+
+        SettingsWindow {
+            id: settingsBubble;
+            opacity: parent.visible ? 1.0 : 0.0;
+
+            Behavior on opacity {
+                NumberAnimation {
+                    easing {
+                        type: Easing.OutQuad;
+                    }
+                    duration: 200;
+                }
+            }
+
+            anchors {
+                fill: parent;
+                leftMargin: 10;
+            }
+
+            visible: parent.visible;
+            stackBackgroundColor: "#f4f4f4";
+            contentColor: "#f4f4f4";
+            textColor: "#515151";
+        }
+
+    }
+
+    DropShadow {
+        source: settingsDropDown;
+        anchors.fill: source;
+        horizontalOffset: 2;
+        verticalOffset: 4;
+        radius: 4;
+        samples: radius * 2;
+        color: "#80000000";
+        transparentBorder: true;
+    }
+
+   // Second pass needed for left side
+   DropShadow {
+        source: settingsDropDown;
+        anchors.fill: source;
+
+        horizontalOffset: -2;
+        verticalOffset: 4;
+        radius: 4;
+        samples: radius * 2;
+        color: "#80000000"
+        transparentBorder: true;
     }
 
     StackView {
         id: windowStack;
-        anchors.fill: parent;
+        z: headerBar.z - 1;
+
+        height: headerBar.visible ? (parent.height - headerBar.height) : (parent.height);
+        anchors {
+            left: parent.left;
+            right: parent.right;
+            bottom: parent.bottom;
+        }
+
         initialItem: homeScreen;
+
+        property string gameStackItemName: {
+            if (currentItem != null && typeof currentItem.stackName !== "undefined") {
+                console.log(currentItem.stackName);
+                return currentItem.stackName;
+            }
+            else {
+                return "";
+            }
+        }
 
         delegate: StackViewDelegate {
             function transitionFinished(properties)
@@ -105,36 +229,32 @@ ApplicationWindow {
         id: homeScreen;
 
         Item {
-            HeaderBar {
+            property string stackName: "";
+            property StackView stackId: gameStack;
+            property bool blur: settingsBubble.visible;
 
-                id: headerBar;
-                anchors {
-                    left: parent.left;
-                    right: parent.right;
-                    top: parent.top;
-                }
-                height: 50;
-                color: "#666666";
-                fontSize: 14;
-
-            }
 
             ConsoleBar {
                 id: consoleBar;
-                //z: headerBar.z - 1;
                 z: headerBar.z - 1;
-                color: "#333333";
+                color: "#303030";
                 anchors {
                     left: parent.left;
-                    top: headerBar.bottom;
+                    top: parent.top;
                     bottom: parent.bottom;
                 }
-                width: 275;
+                width: 225;
             }
 
             StackView {
                 id: gameStack;
-                z: headerBar.z - 1;
+                z: windowStack.z;
+
+                onCurrentItemChanged: {
+                    if (currentItem)
+                    parent.stackName = currentItem.itemName;
+                }
+
                 initialItem: {
                     if (root.clear === true)
                         return emptyScreen;
@@ -142,44 +262,11 @@ ApplicationWindow {
                     return gameGrid;
                 }
 
-
                 anchors {
                     left: consoleBar.right;
                     right: parent.right;
-                    top: headerBar.bottom;
+                    top: parent.top;
                     bottom: parent.bottom;
-                }
-
-            }
-
-            InnerShadow {
-                source: gameStack;
-                anchors.fill: source;
-                radius: 8.0;
-                samples: 16;
-                horizontalOffset: 6;
-                verticalOffset: 1;
-                color: Qt.rgba(0, 0, 0, 0.3);
-            }
-
-            Component {
-                id: gameGrid;
-                GameGrid {
-                    property string itemName: "grid";
-                    color: "#191a1a";
-                    zoomFactor: headerBar.sliderValue;
-                    zoomSliderPressed: headerBar.sliderPressed;
-
-                }
-            }
-
-            Component {
-                id: gameTable;
-                GameTable {
-                    itemName: "table";
-                    highlightColor: "#494545";
-                    textColor: "#f1f1f1";
-                    headerColor: "#2c2c2c";
                 }
             }
 
@@ -189,8 +276,6 @@ ApplicationWindow {
                 Rectangle {
                     property string itemName: "empty";
                     color: "#1d1e1e";
-
-
 
                     Column {
                         anchors.centerIn: parent;
@@ -349,6 +434,5 @@ ApplicationWindow {
                 }
             }
         }
-    }
     }
 }

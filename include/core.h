@@ -12,9 +12,6 @@
 #include <QByteArray>
 #include <QImage>
 #include <QMap>
-#include <QQuickWindow>
-#include <QOpenGLContext>
-#include <QOpenGLFramebufferObject>
 #include <QLibrary>
 #include <QObject>
 
@@ -88,12 +85,6 @@ public:
     
     // Video
     retro_hw_render_callback getHWData() const { return hw_callback; };
-
-    void setVideoWindow(QQuickWindow *window);
-    static retro_proc_address_t getProcAddress(const char *sym);
-    static uintptr_t getCurrentFBO();
-
-
     const void *getImageData() const { return video_data; };
     unsigned getBaseWidth() const { return video_width; };
     unsigned getBaseHeight() const { return video_height; };
@@ -124,8 +115,6 @@ public:
     double getSampleRate() const { return system_av_info->timing.sample_rate; };
     bool isDupeFrame() const { return is_dupe_frame; };
 
-    // Input
-    InputManager *getInputManager();
     // Initilization methods
     bool loadCore(const char * path);
     bool loadGame(const char * path);
@@ -211,7 +200,6 @@ private:
     QByteArray game_data;
     
     // Video
-    QQuickWindow *m_video_window;
     unsigned video_height;
     const void *video_data;
     size_t video_pitch;
@@ -223,9 +211,6 @@ private:
     const int16_t *audio_data;
     int16_t left_channel;
     int16_t right_channel;
-
-    // Input
-    InputManager *input_manager;
 
     // Timing
     bool is_dupe_frame;

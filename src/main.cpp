@@ -14,7 +14,10 @@
 #include "core.h"
 #include "gamelibrarymodel.h"
 #include "librarydbmanager.h"
+#include "phoenixwindow.h"
+#include "cacheimage.h"
 
+InputManager input_manager; // global
 
 int main(int argc, char *argv[])
 {
@@ -36,28 +39,29 @@ int main(int argc, char *argv[])
     a.setApplicationVersion(PHOENIX_VERSION);
     a.setOrganizationName("Phoenix");
 //    a.setOrganizationDomain("phoenix-emu.org");
+    QSettings settings;
 
-    
+
+    qmlRegisterType<PhoenixWindow>("phoenix.window", 1, 0, "PhoenixWindow");
+    qmlRegisterType<CachedImage>("phoenix.image", 1, 0, "CachedImage");
     qmlRegisterType<VideoItem>("VideoItem", 1, 0, "VideoItem");
+    qmlRegisterType<InputDeviceMapping>();
+    qRegisterMetaType<retro_device_id>("retro_device_id");
     
     QQmlApplicationEngine engine;
 
-    /* first, set the context properties */
+    // first, set the context properties
     QQmlContext *rctx = engine.rootContext();
     GameLibraryModel gamelibr;
+    //ImageSaver imgsav;
+    //rctx->setContextProperty("imagesaver", &imgsav);
     rctx->setContextProperty("gamelibrary", &gamelibr);
+    rctx->setContextProperty("inputmanager", &input_manager);
 
-    /* then, load qml and display the window */
+    // then, load qml and display the window
     engine.load(QUrl("qrc:/qml/main.qml"));
     QObject *topLevel = engine.rootObjects().value(0);
     QQuickWindow *window = qobject_cast<QQuickWindow *>(topLevel);
-
-    QSurfaceFormat format;
-    format.setSwapBehavior(QSurfaceFormat::TripleBuffer);
-    format.setOption(QSurfaceFormat::DebugContext);
-    format.setSwapInterval(0);
-
-    window->setFormat(format);
 
     window->show();
 

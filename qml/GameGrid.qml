@@ -3,6 +3,9 @@ import QtQuick.Controls 1.1
 import QtGraphicalEffects 1.0
 import QtQuick.Layouts 1.1
 
+import phoenix.image 1.0
+
+
 Rectangle {
     id: gameGrid;
     color: "#1d1e1e";
@@ -12,17 +15,13 @@ Rectangle {
     property string itemBackgroundColor: "#b85353";
     property real zoomFactor: 1;
     property bool zoomSliderPressed: false;
+    property bool resizeGrid: false;
 
-    onZoomFactorChanged: PropertyAnimation {
-        id: resizeAnimation;
-        target: gridView;
-        properties: "cellWidth, cellHeight";
-        easing {
-            type: Easing.OutCubic;
-        }
-        to: 100 * zoomFactor;
-        duration: 0;
+    onZoomFactorChanged: {
+        if (gridView.cellHeight * zoomFactor !== gridView.cellHeight)
+            resizeGrid = true;
     }
+
 
     GridView {
         id: gridView;
@@ -30,6 +29,33 @@ Rectangle {
         property bool checked: false;
 
         snapMode: GridView.NoSnap;
+
+        states: [
+            State {
+                name: "resizing";
+                when: gameGrid.resizeGrid;
+                PropertyChanges {
+                    target: gridView;
+                    cellHeight: 100 * gameGrid.zoomFactor;
+                    cellWidth: 100 * gameGrid.zoomFactor;
+                }
+            }
+
+        ]
+
+
+        Behavior on cellHeight {
+            PropertyAnimation {
+                //id: resizeAnimation;
+               // target: gridView;
+                //properties: "cellWidth, cellHeight";
+                easing {
+                    type: Easing.OutCubic;
+                }
+                //to: 100 * zoomFactor;
+                duration: 250;
+            }
+        }
 
         anchors {
             fill: parent;
@@ -87,7 +113,22 @@ Rectangle {
                             height: 200;
                             width: 200;
                         }
+
                         fillMode: Image.PreserveAspectFit;
+
+                        CachedImage {
+                            id: cachedImage;
+                            imgsrc: image.source;
+                            folder: "Artwork";
+                            fileName: title;
+                            onLocalsrcChanged: {
+                                //console.log(localsrc);
+                                image.source = localsrc;
+                            }
+                        }
+
+                        Component.onCompleted: cachedImage.start();
+
                         MouseArea {
                             anchors.fill: parent;
                             onPressed: {
@@ -96,9 +137,9 @@ Rectangle {
                                 else
                                     imageHighlight.checked = true;
                                 if (gameView.coreName == "")
-                                    gameView.coreName = "C:/Users/lee/Desktop/32_cores/bsnes_balanced_libretro.dll"
+                                    gameView.coreName = "C:/Users/lee/Desktop/32_cores/snes9x_libretro.dll"
                                 if (gameView.gameName == "")
-                                    gameView.gameName = "C:/Users/lee/Documents/Emulation/SNES/Legend of Zelda, The - A Link to the Past (USA).sfc";
+                                    gameView.gameName = "C:/Users/lee/Documents/Emulation/SNES/Super Mario All-Stars + Super Mario World (USA).sfc";
                                 gameView.run = true;
                                 gameView.loadSaveState = true;
                                 windowStack.push({item: gameView, replace: true });
@@ -121,8 +162,9 @@ Rectangle {
                     transparentBorder: true;
                 }*/
 
-                Label {
+                Text {
                     id: titleLabel;
+                    renderType: Text.QtRendering;
                     anchors {
                         left: parent.left;
                         right: parent.right;

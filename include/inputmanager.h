@@ -1,9 +1,12 @@
 
-#include <QVector>
-#include <QTimer>
+#ifndef INPUTMANAGER_H
+#define INPUTMANAGER_H
+
+#include <QList>
 #include <QObject>
 
-#include "joystick.h"
+#include "inputdevice.h"
+#include "inputdevicemapping.h"
 
 
 class InputManager : public QObject
@@ -12,15 +15,25 @@ class InputManager : public QObject
 
 public:
     InputManager();
-    ~InputManager();
+    virtual ~InputManager();
 
     void scanDevices();
 
     void append(InputDevice *device);
 
     QList<InputDevice *> getDevices() const;
-    InputDevice * getDevice(unsigned port) const;
+    InputDevice *getDevice(unsigned port) const;
+
+public slots:
+    QVariantList enumerateDevices();
+    // return empty mapping for device
+    InputDeviceMapping *mappingForDevice(QVariantMap device);
+
+    // load existing mapping for designated port from settings
+    InputDeviceMapping *mappingForPort(unsigned port);
 
 private:
     QList<InputDevice *> devices;
 };
+
+#endif

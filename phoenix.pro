@@ -20,32 +20,42 @@ win32 {
     INCLUDEPATH += C:/SDL2/include
 }
 
-HEADERS += include/core.h              \
-           include/videoitem.h         \
-           include/audio.h             \
-           include/audiobuffer.h       \
-           include/sdlevents.h         \
-           include/joystick.h          \
-           include/logging.h           \
-           include/qmlsettings.h       \
-           include/inputmanager.h      \
-           include/inputdevice.h       \
-           include/keyboard.h          \
-           include/librarydbmanager.h  \
-           include/gamelibrarymodel.h  \
+HEADERS += include/core.h                      \
+           include/videoitem.h                 \
+           include/audio.h                     \
+           include/audiobuffer.h               \
+           include/sdlevents.h                 \
+           include/joystick.h                  \
+           include/logging.h                   \
+           include/qmlsettings.h               \
+           include/inputmanager.h              \
+           include/inputdevice.h               \
+           include/inputdevicemapping.h        \
+           include/keyboard.h                  \
+           include/librarydbmanager.h          \
+           include/gamelibrarymodel.h          \
+           include/phoenixwindow.h             \
+           include/inputdevicemappingfactory.h \
+           include/inputdevicefactory.h        \
+           include/thegamesdb.h                \
+           include/cacheimage.h
 
-SOURCES += src/main.cpp                \
-           src/videoitem.cpp           \
-           src/core.cpp                \
-           src/audio.cpp               \
-           src/audiobuffer.cpp         \
-           src/sdlevents.cpp           \
-           src/joystick.cpp            \
-           src/logging.cpp             \
-           src/inputmanager.cpp        \
-           src/inputdevice.cpp         \
-           src/keyboard.cpp            \
-           src/librarydbmanager.cpp    \
-           src/gamelibrarymodel.cpp    \
+SOURCES += src/main.cpp                        \
+           src/videoitem.cpp                   \
+           src/core.cpp                        \
+           src/audio.cpp                       \
+           src/audiobuffer.cpp                 \
+           src/sdlevents.cpp                   \
+           src/joystick.cpp                    \
+           src/logging.cpp                     \
+           src/inputmanager.cpp                \
+           src/inputdevice.cpp                 \
+           src/inputdevicemapping.cpp          \
+           src/keyboard.cpp                    \
+           src/librarydbmanager.cpp            \
+           src/gamelibrarymodel.cpp            \
+           src/phoenixwindow.cpp               \
+           src/thegamesdb.cpp                  \
+           src/cacheimage.cpp
 
 RESOURCES = qml/qml.qrc assets/assets.qrc

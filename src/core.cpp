@@ -5,6 +5,9 @@
 
 #include "core.h"
 
+
+extern InputManager input_manager;
+
 LibretroSymbols::LibretroSymbols()
 {
     retro_audio = nullptr;
@@ -36,7 +39,6 @@ Core::Core()
     system_info = new retro_system_info();
     symbols = new LibretroSymbols;
 
-    m_video_window = nullptr;
     video_height = 0;
     video_data = nullptr;
     video_pitch = 0;
@@ -50,8 +52,7 @@ Core::Core()
 
     is_dupe_frame = false;
 
-    input_manager = new InputManager();
-    input_manager->scanDevices();
+    input_manager.scanDevices();
 
     Core::core = this;
 
@@ -59,10 +60,6 @@ Core::Core()
 
 Core::~Core()
 {
-    //while (input_manager->stopTimer())
-        //qCDebug(phxCore) << "Closing timer";
-    delete input_manager;
-
     delete libretro_core;
     delete system_av_info;
     delete system_info;
@@ -75,25 +72,6 @@ Core::~Core()
 // |                        |
 // |     Public methods     |
 // |________________________|
-
-
-// uintptr_t
-uintptr_t Core::getCurrentFBO()
-{
-    qCDebug(phxCore) << "getting the current fbo";
-    QOpenGLContext *context = Core::core->m_video_window->openglContext();
-    qCDebug(phxCore) << "context valid? " << context->isValid();
-
-    return context->defaultFramebufferObject();
-}
-
-// QFunctionPointer = void
-retro_proc_address_t Core::getProcAddress(const char *sym)
-{
-    qCDebug(phxCore) << "getting the current proc address";
-    return Core::core->m_video_window->openglContext()->getProcAddress(sym);
-}
-
 
 bool Core::saveGameState(QString path, QString name)
 {
@@ -121,12 +99,6 @@ bool Core::saveGameState(QString path, QString name)
     return loaded;
 
 } // Core::saveGameState(QString path, char *data, int size)
-
-void Core::setVideoWindow(QQuickWindow *window)
-{
-    qDebug() << "window is being set";
-    m_video_window = window;
-}
 
 bool Core::loadGameState(QString path, QString name)
 {
@@ -164,17 +136,6 @@ void Core::doFrame()
 } // void doFrame()
 
 // Getters
-
-// Input
-// [3]
-
-InputManager *Core::getInputManager()
-{
-    return input_manager;
-
-} // Core::getInputManager()
-
-// ~[3]
 
 // System
 // [4]
@@ -441,9 +402,7 @@ bool Core::environmentCallback(unsigned cmd, void *data)
                     qCritical() << "RETRO_HW_CONTEXT: " << Core::core->hw_callback.context_type << " was not handled";
                     return false;
             }
-            Core::core->hw_callback.get_current_framebuffer = Core::core->getCurrentFBO;
-            Core::core->hw_callback.get_proc_address = Core::core->getProcAddress;
-            return true;
+            break;
 
         case RETRO_ENVIRONMENT_GET_VARIABLE: { // 15
             auto *rv = static_cast<struct retro_variable *>(data);
@@ -568,14 +527,14 @@ int16_t Core::inputStateCallback(unsigned port, unsigned device, unsigned index,
 {
     Q_UNUSED(index)
 
-    if (static_cast<int>(port) > Core::core->input_manager->getDevices().size())
+    if (static_cast<int>(port) >= input_manager.getDevices().size())
         return 0;
 
-    InputDevice *deviceobj = core->input_manager->getDevice(port);
+    InputDevice *deviceobj = input_manager.getDevice(port);
 
     // make sure the InputDevice was configured
     // to map to the requested RETRO_DEVICE.
-    if(deviceobj->type() != device)
+    if(deviceobj->mapping()->deviceType() != device)
         return 0;
 
     // we don't handle index for now...
@@ -612,19 +571,19 @@ void Core::logCallback(enum retro_log_level level, const char *fmt, ...)
 
     switch (level) {
         case RETRO_LOG_DEBUG:
-            qCDebug(phxCore, outbuf.data());
+            qCDebug(phxCore) << outbuf.data();
         break;
         case RETRO_LOG_INFO:
-            qCDebug(phxCore, outbuf.data());
+            qCDebug(phxCore) << outbuf.data();
         break;
         case RETRO_LOG_WARN:
-            qCWarning(phxCore, outbuf.data());
+            qCWarning(phxCore) << outbuf.data();
         break;
         case RETRO_LOG_ERROR:
-            qCCritical(phxCore, outbuf.data());
+            qCCritical(phxCore) << outbuf.data();
         break;
         default:
-            qCWarning(phxCore, outbuf.data());
+            qCWarning(phxCore) << outbuf.data();
         break;
     }
 

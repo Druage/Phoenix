@@ -6,27 +6,48 @@
 #include <SDL2/SDL.h>
 
 #include "inputdevice.h"
+#include "inputdevicemapping.h"
 #include "sdlevents.h"
 
 
 class Joystick : public InputDevice
 {
-
 public:
-    Joystick();
+    Joystick(InputDeviceMapping *mapping);
     virtual ~Joystick();
 
-    //int axis_count;
-    //int button_count;
-    //int hat_count;
-    //QMap<quint8, Sint16> axes;
-    //QMap<unsigned, Uint8> button_states;
-    //QMap<quint8, Uint8> hats;
+    // enumerate plugged-in devices
+    static QVariantList enumerateDevices();
+
+    class Mapping : public InputDeviceMapping
+    {
+    public:
+        Mapping() : joystick_guid() {};
+
+        virtual int32_t eventFromString(QString) Q_DECL_OVERRIDE;
+
+        virtual bool populateFromSettings(QSettings &settings) Q_DECL_OVERRIDE;
+        virtual bool populateFromDict(QVariantMap deviceinfo) Q_DECL_OVERRIDE;
+
+        // return true if joystick with the given guid
+        // is handled by this mapping
+        bool matchJoystick(const SDL_JoystickGUID &guid) const;
+
+    public slots:
+        virtual QVariant setMappingOnInput(retro_device_id id, QJSValue cb) Q_DECL_OVERRIDE;
+        virtual void cancelMappingOnInput(QVariant cancelInfo) Q_DECL_OVERRIDE;
+
+    private:
+        SDL_JoystickGUID joystick_guid;
+
+        // only used by setMappingOnInput helper function
+        std::unique_ptr<Joystick> joystick;
+    };
 
 private:
     std::shared_ptr<SDLEvents> events;
-    // shared instance between all the class Joystick instances
-    static std::weak_ptr<SDLEvents> events_global;
+
+    Mapping *m_mapping;
 
     bool handleSDLEvent(const SDL_Event *event);
     SDLEvents::EventCallback callback;
@@ -37,6 +58,9 @@ private:
 
     bool deviceAdded(const SDL_Event *event);
     bool deviceRemoved(const SDL_Event *event);
+
+    bool attachJoystick(int which);
+    bool attachGameController(int which);
 
     bool controllerButtonChanged(const SDL_Event *event);
     bool controllerAxisChanged(const SDL_Event *event);

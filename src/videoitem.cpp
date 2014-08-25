@@ -2,13 +2,14 @@
 #include "videoitem.h"
 
 
+extern InputManager input_manager;
 
 VideoItem::VideoItem()
 {
     core = new Core();
 
     m_program = nullptr;
-    texture = nullptr;
+    texture_node = nullptr;
     m_libcore = "";
 
     audio = new Audio();
@@ -16,9 +17,6 @@ VideoItem::VideoItem()
     audio->start();
     core->audio_buf = audio->abuf();
     m_volume = 0.0;
-
-    keyboard = new Keyboard();
-    core->getInputManager()->append(keyboard);
 
     connect(&fps_timer, SIGNAL(timeout()), this, SLOT(updateFps()));
     frame_timer.invalidate();
@@ -31,12 +29,11 @@ VideoItem::VideoItem()
 
 VideoItem::~VideoItem()
 {
-    delete keyboard;
     delete core;
     if (m_program)
         delete m_program;
-    if (texture)
-        delete texture;
+    if (texture_node)
+        delete texture_node;
 }
 
 void VideoItem::handleWindowChanged(QQuickWindow *win)
@@ -58,21 +55,13 @@ void VideoItem::handleWindowChanged(QQuickWindow *win)
     }
 }
 
-uintptr_t VideoItem::getCurrentFrameBuffer()
-{
-    return window()->renderTargetId();
-}
-
 void VideoItem::handleSceneGraphInitialized()
 {
     refreshItemGeometry();
-    core->setVideoWindow(window());
-
-    // initialize texture with an empty 1x1 black image
+    // initialize texture_node with an empty 1x1 black image
     QImage emptyImage(1, 1, QImage::Format_RGB32);
     emptyImage.fill(Qt::black);
-    texture = new QOpenGLTexture(emptyImage);
-    frame_buffer = new QOpenGLFramebufferObject(window()->size());
+    texture_node = window()->createTextureFromImage(emptyImage);
 }
 
 void VideoItem::setWindowed(bool windowVisibility)
@@ -183,26 +172,17 @@ void VideoItem::keyEvent(QKeyEvent *event)
 
     switch(event->key()) {
         case Qt::Key_Escape:
-            if(is_pressed)
+            if(is_pressed) {
                 emit setWindowedChanged(true);
+                event->accept();
+            }
             break;
         case Qt::Key_Space:
             if(is_pressed) {
-                if (m_run)
-                    setRun(false);
-                else
-                    setRun(true);
+                setRun(m_run ? false : true);
+                event->accept();
             }
             break;
-    }
-
-    // we also pass every KeyEvent to each connected InputDevice which is a Keyboard.
-    // a bit ugly, but this avoid overhead of signal/slots and event filters
-    QList<InputDevice *> devices = core->getInputManager()->getDevices();
-    for (int i=0; i < devices.size(); ++i) {
-        auto keyboardinput = dynamic_cast<Keyboard *>(devices.at(i));
-        if (keyboardinput != nullptr)
-            keyboardinput->processKeyEvent(event);;
     }
 }
 
@@ -282,22 +262,22 @@ void VideoItem::initShader()
 
 }
 
-void VideoItem::setTexture()
+void VideoItem::setTexture(QSGTexture::Filtering filter)
 {
     QImage::Format frame_format = retroToQImageFormat(core->getPixelFormat());
 
-    texture->destroy();
-    texture = new QOpenGLTexture(QImage((const uchar *)core->getImageData(),
+    texture_node->deleteLater();
+    texture_node = window()->createTextureFromImage(QImage((const uchar *)core->getImageData(),
                                                         core->getBaseWidth(),
                                                         core->getBaseHeight(),
                                                         core->getPitch(),
-                                                        frame_format).mirrored());
+                                                        frame_format).mirrored()
+                                                    , QQuickWindow::TextureOwnsGLTexture);
 
-    //texture->setMagnificationFilter();
+    texture_node->setFiltering(filter);
 
-    texture->setWrapMode(QOpenGLTexture::ClampToEdge);
-   // texture->setHorizontalWrapMode(QSGTexture::ClampToEdge);
-    //texture->setVerticalWrapMode(QSGTexture::ClampToEdge);
+    texture_node->setHorizontalWrapMode(QSGTexture::ClampToEdge);
+    texture_node->setVerticalWrapMode(QSGTexture::ClampToEdge);
 
 }
 
@@ -334,19 +314,16 @@ void VideoItem::paint()
         core->doFrame();
         fps_count++;
 
-
         // Sets texture from core->getImageData();
-        setTexture();
+        setTexture(QSGTexture::Linear);
     }
-
 
 
     // Sets viewport size, and enables / disables opengl functionality.
     initGL();
-    frame_buffer->bind();
+
     // Binds texture to opengl context
-    texture->bind();
-    frame_buffer->release();
+    texture_node->bind();
 
     if (!m_program) {
         // constructs vertex & frag shaders and links them.
@@ -372,7 +349,7 @@ void VideoItem::paint()
     };
 
     // Texture coords
-    GLfloat texture_points[] = {
+    GLfloat texture[] = {
         0, 0,
         1, 0,
         0, 1,
@@ -382,7 +359,7 @@ void VideoItem::paint()
     // Sets location 0 equal to vertices in values array
     m_program->setAttributeArray(0, QOpenGLTexture::Float32, values, 2);
 
-    m_program->setAttributeArray(1, QOpenGLTexture::Float32, texture_points, 2);
+    m_program->setAttributeArray(1, QOpenGLTexture::Float32, texture, 2);
 
     // Draws processed triangle stip onto the screen.
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -390,7 +367,6 @@ void VideoItem::paint()
     m_program->disableAttributeArray(0);
     m_program->disableAttributeArray(1);
     m_program->release();
-    texture->release();
 
     // Loop forever;
     window()->update();
@@ -403,8 +379,8 @@ void VideoItem::cleanup()
         delete m_program;
         m_program = nullptr;
     }
-    if (texture) {
-        delete texture;
-        texture = nullptr;
+    if (texture_node) {
+        delete texture_node;
+        texture_node = nullptr;
     }
 }

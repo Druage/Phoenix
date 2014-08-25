@@ -5,7 +5,7 @@
 #include <QtQuick/QQuickItem>
 #include <QtQuick/qquickwindow.h>
 #include <QtGui/QOpenGLShaderProgram>
-#include <QOpenGLFramebufferObject>
+#include <QtGui/QOpenGLShaderProgram>
 #include <QtGui/QOpenGLContext>
 #include <QOpenGLTexture>
 #include <QImage>
@@ -38,10 +38,6 @@ public:
     VideoItem();
     ~VideoItem();
 
-    QOpenGLFramebufferObject *frame_buffer;
-
-
-    QQuickWindow *setWindow();
     void initShader();
     void initGL();
     void setCore(QString libcore);
@@ -50,40 +46,47 @@ public:
     void setWindowed(bool setWindowed);
     void setSystemDirectory(QString systemDirectory);
     void setSaveDirectory(QString saveDirectory);
-    void setTexture();
+    void setTexture(QSGTexture::Filtering filter);
     void setVolume(qreal volume);
-    uintptr_t getCurrentFrameBuffer(void);
 
 
-    QString libcore() const {
+    QString libcore() const
+    {
         return m_libcore;
     }
 
-    QString game() const {
+    QString game() const
+    {
         return m_game;
     }
 
-    bool run() const {
+    bool run() const
+    {
         return m_run;
     }
 
-    bool setWindowed() const {
+    bool setWindowed() const
+    {
         return m_set_windowed;
     }
 
-    QString systemDirectory() const {
+    QString systemDirectory() const
+    {
         return m_system_directory;
     }
 
-    QString saveDirectory() const {
+    QString saveDirectory() const
+    {
         return m_save_directory;
     }
 
-    int fps() const {
+    int fps() const
+    {
         return m_fps;
     }
 
-    qreal volume() const {
+    qreal volume() const
+    {
         return m_volume;
     }
 
@@ -137,7 +140,7 @@ private:
     // Video
     // [1]
     QOpenGLShaderProgram *m_program;
-    QOpenGLTexture *texture;
+    QSGTexture *texture_node;
     Core *core;
     int item_w;
     int item_h;
@@ -166,12 +169,6 @@ private:
     Audio *audio;
     void updateAudioFormat();
     //[3]
-
-    // Input
-    // [4]
-    Keyboard *keyboard;
-    //[4]
-
 
     void refreshItemGeometry(); // called every time the item's with/height/x/y change
 

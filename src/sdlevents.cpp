@@ -15,6 +15,7 @@ SDLEvents::SDLEvents()
     // from https://github.com/gabomdq/SDL_GameControllerDB
     // TODO: Instead of storing the file as a ressource, have it in some
     // directory so the user can modify it if needed..
+    Q_INIT_RESOURCE(assets); // needed to access resources before app.exec()
     QFile f(":/assets/gamecontrollerdb.txt");
     f.open(QIODevice::ReadOnly);
     SDL_SetHint(SDL_HINT_GAMECONTROLLERCONFIG, f.readAll().constData());
@@ -24,6 +25,7 @@ SDLEvents::SDLEvents()
     this->moveToThread(&thread);
     polltimer.moveToThread(&thread);
     connect(&thread, SIGNAL(started()), SLOT(threadStarted()));
+    connect(&thread, SIGNAL(finished()), SLOT(threadFinished()));
     thread.setObjectName("phoenix-SDLEvents");
 
     thread.start(QThread::HighPriority);
@@ -31,6 +33,7 @@ SDLEvents::SDLEvents()
 
 SDLEvents::~SDLEvents()
 {
+    polltimer.stop();
     thread.quit();
     thread.wait();
     delete[] event_list;
@@ -57,7 +60,8 @@ void SDLEvents::threadStarted()
 
     connect(&polltimer, SIGNAL(timeout()), this, SLOT(pollSDL()));
 
-    polltimer.start(10); // TODO: use retro_input_poll_t for polling instead of a timer ??
+    // TODO: use retro_input_poll_t for polling instead of a timer ??
+    polltimer.start(10);
 }
 
 void SDLEvents::threadFinished()
@@ -69,6 +73,7 @@ void SDLEvents::threadFinished()
 
 void SDLEvents::pollSDL()
 {
+    QMutexLocker l(&sdl_mutex);
     // consume moar events
     SDL_PumpEvents();
     int ret = SDL_PeepEvents(event_list, 10, SDL_GETEVENT, SDL_FIRSTEVENT, SDL_LASTEVENT);

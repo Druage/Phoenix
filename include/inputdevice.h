@@ -7,48 +7,55 @@
 #include <QString>
 #include "libretro.h"
 
+#include "libretro_types.h"
 #include "logging.h"
 
 
-typedef unsigned retro_device_type;
+class InputDeviceMapping;
 
 
-class InputDevice
+class InputDevice : public QObject
 {
+    Q_OBJECT
+
 public:
-    InputDevice();
+    InputDevice(InputDeviceMapping *mapping);
 
     virtual ~InputDevice();
 
     QString deviceName() const { return device_name; }
-    retro_device_type type() const { return m_type; }
 
-    int16_t state(unsigned id) const {
+    const InputDeviceMapping *mapping() const { return m_mapping; };
+
+    int16_t state(retro_device_id id) const {
         QMutexLocker lock(&ids_state_mutex);
         return ids_state.value(id, 0);
     }
 
+signals:
+    void inputEventReceived(int32_t event, int16_t value);
+
 protected:
     void setDeviceName(const char *new_name);
-    void setType(retro_device_type new_type);
-    void setState(unsigned id, int16_t state) {
+    void setState(retro_device_id id, int16_t state) {
         QMutexLocker lock(&ids_state_mutex);
         ids_state[id] = state;
     }
 
+    // mapping
+    InputDeviceMapping *m_mapping;
+
     // maps ids to state
     // ids can refer to a button, an axis, etc...
     // depending to the retro_device_type
-    QMap<unsigned, int16_t> ids_state;
+    QMap<retro_device_id, int16_t> ids_state;
     mutable QMutex ids_state_mutex;
 
 private:
     // input device name, e.g "Xbox 360 Controller"
     QString device_name;
 
-    // NONE/JOYPAD/MOUSE/KEYBOARD/LIGHTGUN/ANALOG/POINTER or subclass
     retro_device_type m_type;
-
 };
 
 #endif // INPUTDEVICE_H
