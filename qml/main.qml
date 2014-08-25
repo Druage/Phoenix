@@ -7,6 +7,7 @@ import QtQuick.Dialogs 1.1
 import QtQuick.Window 2.0
 import Qt.labs.settings 1.0
 import phoenix.window 1.0
+import phoenix.library 1.0
 
 PhoenixWindow {
     id: root;
@@ -22,6 +23,10 @@ PhoenixWindow {
 
     onWidthChanged: {
         settingsDropDown.state = "retracted";
+    }
+
+    PhoenixLibrary {
+        id: phoenixLibrary;
     }
 
 
@@ -148,6 +153,7 @@ PhoenixWindow {
     }
 
     DropShadow {
+        visible: source.visible;
         source: settingsDropDown;
         anchors.fill: source;
         horizontalOffset: 2;
@@ -160,6 +166,7 @@ PhoenixWindow {
 
    // Second pass needed for left side
    DropShadow {
+       visible: source.visible;
         source: settingsDropDown;
         anchors.fill: source;
 

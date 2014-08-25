@@ -150,7 +150,8 @@ Rectangle {
             visible: false;
             onAccepted: {
                 var url = fileUrl.toString().replace("file:///", "");
-                gamelibrary.scanFolder(url);
+                phoenixLibrary.folderPath = url;
+                phoenixLibrary.startImport(true);
             }
         }
 
