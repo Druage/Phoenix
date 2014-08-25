@@ -47,11 +47,6 @@ public:
         return m_progress;
     }
 
-    Q_INVOKABLE GameLibraryModel *model()
-    {
-        return m_model;
-    }
-
 public slots:
     void scanFolder();
     void setModel(GameLibraryModel *model)
@@ -60,20 +55,25 @@ public slots:
         emit modelChanged();
     }
 
-    bool startImport(bool start);
+    void startImport(bool start);
+    GameLibraryModel *model()
+    {
+        return m_model;
+    }
 
 private slots:
 
 signals:
     void folderPathChanged(QString);
-    void modelChanged();
+    void queryStaged();
     void labelChanged();
     void progressChanged();
     void startChanged();
+    void modelChanged();
+    void scanComplete();
 
 private:
     QThread *import_thread;
-    QSqlQuery query;
     TheGamesDB *scraper;
     GameLibraryModel *m_model;
     QString m_folder_path;

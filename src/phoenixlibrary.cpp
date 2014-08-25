@@ -3,35 +3,31 @@
 PhoenixLibrary::PhoenixLibrary()
 
 {
-    import_thread = new QThread();
+    import_thread = new QThread(this);
     import_thread->setObjectName("phoenix-scraper");
 
     m_model = new GameLibraryModel();
+    m_model->moveToThread(import_thread);
+
+    scraper = nullptr;
 
     connect(import_thread, SIGNAL(started()), this, SLOT(scanFolder()));
+    connect(this, SIGNAL(queryStaged()), m_model, SLOT(updateQuery()));
     connect(import_thread, SIGNAL(finished()), import_thread, SLOT(deleteLater()));
+    //connect(this, SIGNAL(scanComplete()), m_model, SLOT(updateQuery()));
 }
 
 PhoenixLibrary::~PhoenixLibrary()
 {
-    if (scraper) {
-        scraper->deleteLater();
-    }
-    if (m_model)
-        m_model->deleteLater();
-
-    if (import_thread)
-        import_thread->deleteLater();
+    m_model->deleteLater();
 
 }
-
-bool PhoenixLibrary::startImport(bool start)
+void PhoenixLibrary::startImport(bool start)
 {
     if (start) {
         import_thread->start(QThread::NormalPriority);
     }
 }
-
 
 void PhoenixLibrary::addFilters(QStringList &filter_list)
 {
@@ -136,28 +132,34 @@ void PhoenixLibrary::scanFolder()
         }
     }
 
+    int m_file_count = files.size();
+    qreal count = static_cast<qreal>(m_file_count);
+
+    if (m_file_count == 0)
+        return;
+
     QSqlDatabase database = m_model->manager().handle();
 
     database.transaction();
 
-    int m_file_count = files.size();
-    qreal count = static_cast<qreal>(m_file_count);
-
-    setLabel("Finding Artwork");
-    query = QSqlQuery(m_model->manager().handle());
+    QSqlQuery query;
 
     for (qreal i=0; i < count; ++i) {
 
         QFileInfo file_info = files.at(i);
         QString system = getSystem(file_info.suffix());
 
+        qCDebug(phxLibrary) << file_info.baseName();
+
+
         if (system != "") {
             GameData game_data;
-            scraper = new TheGamesDB(this, &game_data);
+
+            scraper = new TheGamesDB();
+            scraper->setData(&game_data);
             scraper->setGameName(file_info.baseName());
             scraper->setGamePlatform(system);
             scraper->start();
-
 
             query.prepare("INSERT INTO games (title, console, time_played, artwork)"
             " VALUES (?, ?, ?, ?)");
@@ -174,6 +176,8 @@ void PhoenixLibrary::scanFolder()
                  query.bindValue(3, game_data.front_boxart);
              else
                  query.bindValue(3, "qrc:/assets/No-Art.png");
+
+             //qCDebug(phxLibrary) << game_data.front_boxart;
 
              query.bindValue(1, system);
              query.bindValue(2, "0h 0m 0s");
@@ -202,8 +206,9 @@ void PhoenixLibrary::scanFolder()
                 qCDebug(phxLibrary) <<  "db not opened";
             */
 
-            m_model->update();
-            setProgress((((i+1) / count) * 100.0));
+            emit queryStaged();
+            //setProgress((((i+1) / count) * 100.0));
+            //qCDebug(phxLibrary) << m_progress;
 
         }
 
@@ -212,7 +217,8 @@ void PhoenixLibrary::scanFolder()
     }
 
     database.commit();
-    m_model->submit();
+
+    emit scanComplete();
 
 }
 

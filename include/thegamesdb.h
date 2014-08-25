@@ -47,18 +47,19 @@ public:
 class TheGamesDB : public QObject {
     Q_OBJECT
 public:
-    TheGamesDB(QObject *parent, GameData *m_game_data);
+    TheGamesDB();
+    explicit TheGamesDB(QObject *parent);
 
     ~TheGamesDB();
 
     void setGameName(QString name);
     void setGamePlatform(QString platform);
-
-    void getGame(QString game_id);
+    void setData(GameData *data);
 
 signals:
     void finished();
     void started();
+    void completedRequest();
 
 public slots:
     void processRequest(QNetworkReply *m_reply);
@@ -75,8 +76,9 @@ private:
     QString m_game_name;
     QString m_game_platform;
     QUrl m_url;
-    QString cleanString(QString string);
 
+    QString cleanString(QString string);
+    void getGame(QString game_id);
     void findXMLGame();
     void parseXMLforId(QString game_name);
     void getGameId();

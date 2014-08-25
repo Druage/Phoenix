@@ -14,10 +14,18 @@ const QStringList EXPRESSIONS = (QStringList() << " "
                                                << "?"
                                                << ":");
 
+TheGamesDB::TheGamesDB()
+{
+    manager = new QNetworkAccessManager(this);
+    reply = nullptr;
 
-TheGamesDB::TheGamesDB (QObject *parent, GameData *m_game_data)
-    : QObject(parent),
-      game_data(m_game_data)
+    connect (this, SIGNAL(started()), this, SLOT(populateData()));
+    connect(manager, SIGNAL(finished(QNetworkReply*)), this, SLOT(processRequest(QNetworkReply *)));
+    connect(this, SIGNAL(finished()), this, SLOT(deleteLater()));
+}
+
+TheGamesDB::TheGamesDB (QObject *parent)
+    : QObject(parent)
 {
     manager = new QNetworkAccessManager(this);
     reply = nullptr;
@@ -54,11 +62,16 @@ void TheGamesDB::setUrl(QUrl url)
     m_url = url;
 }
 
+void TheGamesDB::setData(GameData *data)
+{
+    game_data = data;
+}
+
 void TheGamesDB::processRequest(QNetworkReply *m_reply)
 {
     reply = m_reply;
 
-    connect(this, SIGNAL(finished()), reply, SLOT(deleteLater()));
+    connect(this, SIGNAL(completedRequest()), reply, SLOT(deleteLater()));
     connect(reply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(processErrors(QNetworkReply::NetworkError)));
 
 }
@@ -206,7 +219,7 @@ void TheGamesDB::getGame(QString game_id) {
 
     findXMLGame();
 
-    emit finished();
+    emit completedRequest();
 }
 
 void TheGamesDB::getGameId() {
@@ -214,12 +227,14 @@ void TheGamesDB::getGameId() {
     getNetworkReply();
     parseXMLforId(m_game_name);
 
-    emit finished();
+    emit completedRequest();
 }
 
 void TheGamesDB::populateData()
 {
     getGameId();
     getGame(game_data->id);
+
+    emit completedRequest();
     emit finished();
 }
