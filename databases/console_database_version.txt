@@ -1,0 +1,25 @@
+[OK] C:/Users/lee/Desktop/github/Phoenix/databases\32X.xml
+[OK] C:/Users/lee/Desktop/github/Phoenix/databases\Atari - 5200 (20130303-220600_CM).xml
+[OK] C:/Users/lee/Desktop/github/Phoenix/databases\Atari - 7800 (20140326-040142_CM).xml
+[OK] C:/Users/lee/Desktop/github/Phoenix/databases\Atari - Lynx (20130303-222635_CM).xml
+[OK] C:/Users/lee/Desktop/github/Phoenix/databases\Atari - ST (20130222-234717_CM).xml
+[OK] C:/Users/lee/Desktop/github/Phoenix/databases\Bandai - WonderSwan (20140803-052611_CM).xml
+[OK] C:/Users/lee/Desktop/github/Phoenix/databases\Bandai - WonderSwan Color (20140107-045955_CM).xml
+[OK] C:/Users/lee/Desktop/github/Phoenix/databases\Coleco - ColecoVision (20140803-055913_CM).xml
+[OK] C:/Users/lee/Desktop/github/Phoenix/databases\Commodore - 64 (20130331-070011_CM).xml
+[OK] C:/Users/lee/Desktop/github/Phoenix/databases\Game Boy Advance.xml
+[OK] C:/Users/lee/Desktop/github/Phoenix/databases\Game Boy Color.xml
+[OK] C:/Users/lee/Desktop/github/Phoenix/databases\Game Boy.xml
+[OK] C:/Users/lee/Desktop/github/Phoenix/databases\GCE - Vectrex (20081109-035804_CM).xml
+[OK] C:/Users/lee/Desktop/github/Phoenix/databases\NEC - PC Engine - TurboGrafx 16 (20140803-081637_CM).xml
+[OK] C:/Users/lee/Desktop/github/Phoenix/databases\NEC - Super Grafx (20110307-113453_CM).xml
+[OK] C:/Users/lee/Desktop/github/Phoenix/databases\Nintendo - Nintendo DSi Decrypted (20130828-125801_CM).xml
+[OK] C:/Users/lee/Desktop/github/Phoenix/databases\Nintendo 64.xml
+[OK] C:/Users/lee/Desktop/github/Phoenix/databases\Nintendo Entertainment System.xml
+[OK] C:/Users/lee/Desktop/github/Phoenix/databases\Sega - Master System - Mark III (20140915-130834_CM).xml
+[OK] C:/Users/lee/Desktop/github/Phoenix/databases\Sega - Mega Drive - Genesis (20140910-222244_CM).xml
+[OK] C:/Users/lee/Desktop/github/Phoenix/databases\Sega - PICO (20140831-101625_CM).xml
+[OK] C:/Users/lee/Desktop/github/Phoenix/databases\Sinclair - ZX Spectrum +3 (20130225-035911_CM).xml
+[OK] C:/Users/lee/Desktop/github/Phoenix/databases\Sony - PlayStation Portable (20140906-012218_CM).xml
+[OK] C:/Users/lee/Desktop/github/Phoenix/databases\Super Nintendo Entertainment System.xml
+[OK] C:/Users/lee/Desktop/github/Phoenix/databases\Virtual Boy.xml

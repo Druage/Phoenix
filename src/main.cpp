@@ -18,6 +18,7 @@
 #include "phoenixlibrary.h"
 #include "cacheimage.h"
 
+
 InputManager input_manager; // global
 
 int main(int argc, char *argv[])
@@ -45,18 +46,19 @@ int main(int argc, char *argv[])
 
     qmlRegisterType<PhoenixWindow>("phoenix.window", 1, 0, "PhoenixWindow");
     qmlRegisterType<CachedImage>("phoenix.image", 1, 0, "CachedImage");
-    qmlRegisterType<VideoItem>("VideoItem", 1, 0, "VideoItem");
-    qmlRegisterType<GameLibraryModel>("phoenix.library", 1, 0, "GameLibraryModel");
-
+    qmlRegisterType<VideoItem>("phoenix.video", 1, 0, "VideoItem");
+    qmlRegisterType<GameLibraryModel>();
     qmlRegisterType<PhoenixLibrary>("phoenix.library", 1, 0, "PhoenixLibrary");
     qmlRegisterType<InputDeviceMapping>();
+    qmlRegisterType<InputDevice>();
+    qRegisterMetaType<retro_device_id>("retro_device_id");
+    qRegisterMetaType<int16_t>("int16_t");
+    qRegisterMetaType<InputDeviceEvent *>();
 
     QQmlApplicationEngine engine;
 
     // first, set the context properties
     QQmlContext *rctx = engine.rootContext();
-    rctx->setContextProperty("inputmanager", &input_manager);
-
     rctx->setContextProperty("inputmanager", &input_manager);
 
     // then, load qml and display the window
@@ -65,6 +67,8 @@ int main(int argc, char *argv[])
     QQuickWindow *window = qobject_cast<QQuickWindow *>(topLevel);
 
     window->show();
+
+    input_manager.scanDevices();
 
     return a.exec();
 }

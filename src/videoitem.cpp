@@ -8,19 +8,23 @@ VideoItem::VideoItem()
 {
     core = new Core();
 
-    m_program = nullptr;
-    texture_node = nullptr;
+    texture = nullptr;
     m_libcore = "";
+    m_stretch_video = false;
+    m_filtering = 2;
+    m_aspect_ratio = 0.0;
+    m_fps = 0;
 
     audio = new Audio();
     Q_CHECK_PTR(audio);
     audio->start();
     core->audio_buf = audio->abuf();
-    m_volume = 0.0;
+    m_volume = 1.0;
 
     connect(&fps_timer, SIGNAL(timeout()), this, SLOT(updateFps()));
     frame_timer.invalidate();
     fps_deviation = 0;
+    fps_count = 0;
 
     connect(this, SIGNAL(runChanged(bool)), audio, SLOT(runChanged(bool)));
     connect(this, SIGNAL(volumeChanged(qreal)), audio, SLOT(setVolume(qreal)));
@@ -29,11 +33,10 @@ VideoItem::VideoItem()
 
 VideoItem::~VideoItem()
 {
+    unload();
     delete core;
-    if (m_program)
-        delete m_program;
-    if (texture_node)
-        delete texture_node;
+    if (texture)
+        texture->deleteLater();
 }
 
 void VideoItem::handleWindowChanged(QQuickWindow *win)
@@ -42,17 +45,27 @@ void VideoItem::handleWindowChanged(QQuickWindow *win)
         // Connect the beforeRendering signal to our paint function.
         // Since this call is executed on the rendering thread it must be
         // a Qt::DirectConnection
-
-        connect(win, SIGNAL(beforeRendering()), this, SLOT(paint()), Qt::DirectConnection);
+    setFlag(QQuickItem::ItemHasContents, true);
+        connect(win, SIGNAL(frameSwapped()), this, SLOT(update()));
         connect(win, SIGNAL(widthChanged(int)), this, SLOT(handleGeometryChanged(int)));
         connect(win, SIGNAL(heightChanged(int)), this, SLOT(handleGeometryChanged(int)));
         connect(win, SIGNAL(sceneGraphInitialized()), this, SLOT(handleSceneGraphInitialized()));
 
         // If we allow QML to do the clearing, they would clear what we paint
         // and nothing would show.
-        win->setClearBeforeRendering(false);
+        //win->setClearBeforeRendering(false);
 
     }
+}
+
+void VideoItem::refreshItemGeometry()
+{
+    qreal pixel_ratio = window()->devicePixelRatio();
+    item_w = int(pixel_ratio * width());
+    item_h = int(pixel_ratio * height());
+    item_aspect = (qreal)item_w / item_h;
+    viewportXY = mapToScene(QPointF(x(), height()+y())).toPoint();
+    viewportXY.setY(window()->height() - viewportXY.y());
 }
 
 void VideoItem::handleSceneGraphInitialized()
@@ -61,7 +74,7 @@ void VideoItem::handleSceneGraphInitialized()
     // initialize texture_node with an empty 1x1 black image
     QImage emptyImage(1, 1, QImage::Format_RGB32);
     emptyImage.fill(Qt::black);
-    texture_node = window()->createTextureFromImage(emptyImage);
+    texture = window()->createTextureFromImage(emptyImage);
 }
 
 void VideoItem::setWindowed(bool windowVisibility)
@@ -83,7 +96,6 @@ void VideoItem::setSystemDirectory(QString systemDirectory)
 {
     m_system_directory = systemDirectory;
     core->setSystemDirectory(systemDirectory);
-
 }
 
 void VideoItem::setSaveDirectory(QString saveDirectory)
@@ -92,6 +104,13 @@ void VideoItem::setSaveDirectory(QString saveDirectory)
     core->setSaveDirectory(saveDirectory);
 
 }
+
+void VideoItem::setAspectRatio(qreal aspectRatio)
+{
+    m_aspect_ratio = aspectRatio;
+    emit aspectRatioChanged();
+}
+
 
 void VideoItem::saveGameState()
 {
@@ -121,6 +140,7 @@ void VideoItem::setCore(QString libcore)
 
     const retro_system_info *i = core->getSystemInfo();
     qCDebug(phxVideo) << "Loaded core" << i->library_name << i->library_version;
+    m_libcore = libcore;
     emit libcoreChanged(libcore);
 }
 
@@ -151,6 +171,26 @@ void VideoItem::setRun(bool run)
         qCDebug(phxVideo, "Core paused");
     }
     emit runChanged(run);
+}
+
+void VideoItem::setFiltering(int filtering)
+{
+    m_filtering = filtering;
+    emit filteringChanged();
+}
+
+void VideoItem::setStretchVideo(bool stretchVideo)
+{
+    m_stretch_video = stretchVideo;
+    emit stretchVideoChanged();
+}
+
+QStringList VideoItem::getAudioDevices()
+{
+    QStringList list;
+    foreach (const QAudioDeviceInfo &device_info, QAudioDeviceInfo::availableDevices(QAudio::AudioOutput))
+        list.append(device_info.deviceName());
+    return list;
 }
 
 void VideoItem::updateAudioFormat()
@@ -186,98 +226,21 @@ void VideoItem::keyEvent(QKeyEvent *event)
     }
 }
 
-void VideoItem::refreshItemGeometry()
-{
-    qreal pixel_ratio = window()->devicePixelRatio();
-    item_w = int(pixel_ratio * width());
-    item_h = int(pixel_ratio * height());
-    item_aspect = (qreal)item_w / item_h;
-
-    viewportXY = mapToScene(QPointF(x(), height()+y())).toPoint();
-    viewportXY.setY(window()->height() - viewportXY.y());
-}
-
-void VideoItem::initGL()
-{
-    qreal desired_aspect = core->getAspectRatio();
-    ulong core_w = item_h * desired_aspect;
-    ulong core_h = item_w / desired_aspect;
-    QRect viewportRect;
-
-    if(fabsf(item_aspect - desired_aspect) < 0.0001f) {
-        viewportRect.setRect(viewportXY.x(), viewportXY.y(), core_w, core_h);
-    }
-    else if(item_aspect > desired_aspect) {
-        viewportRect.setRect(viewportXY.x() + ((item_w - core_w) / 2),
-                             viewportXY.y(),
-                             core_w, item_h);
-    }
-    else {
-        viewportRect.setRect(viewportXY.x(),
-                             viewportXY.y() + ((item_h - core_h) / 2),
-                             item_w, core_h );
-    }
-
-    glViewport(viewportRect.x(), viewportRect.y(),
-               viewportRect.width(), viewportRect.height());
-
-    glDisable(GL_DEPTH_TEST);
-
-    glClearColor(0, 0, 0, 1);
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    glEnable(GL_BLEND);
-    glEnable(GL_TEXTURE_2D);
-
-}
-
-void VideoItem::initShader()
-{
-    m_program = new QOpenGLShaderProgram();
-    m_program->addShaderFromSourceCode(QOpenGLShader::Vertex,
-                                       "attribute highp vec4 vertices;"
-                                       "attribute mediump vec4 texCoord;"
-                                       "varying mediump vec4 texc;"
-                                       "void main() {"
-                                       "    gl_Position = vertices;"
-                                       "    texc = texCoord;"
-                                       "}");
-    m_program->addShaderFromSourceCode(QOpenGLShader::Fragment,
-                                       "uniform sampler2D texture;"
-                                       "varying mediump vec4 texc;"
-                                       "void main() {"
-                                       "    gl_FragColor = texture2D(texture, texc.st);"
-                                       "}");
-
-    // Binds location 0 to variable vertices
-    m_program->bindAttributeLocation("vertices", 0);
-    m_program->bindAttributeLocation("texCoord", 1);
 
 
-    // Links vertex and frag shader
-    m_program->link();
 
-    connect(window()->openglContext(), SIGNAL(aboutToBeDestroyed()),
-            this, SLOT(cleanup()), Qt::DirectConnection);
-
-}
-
-void VideoItem::setTexture(QSGTexture::Filtering filter)
+void VideoItem::setTexture()
 {
     QImage::Format frame_format = retroToQImageFormat(core->getPixelFormat());
 
-    texture_node->deleteLater();
-    texture_node = window()->createTextureFromImage(QImage((const uchar *)core->getImageData(),
+    if (texture)
+        texture->deleteLater();
+    texture = window()->createTextureFromImage(QImage((const uchar *)core->getImageData(),
                                                         core->getBaseWidth(),
                                                         core->getBaseHeight(),
                                                         core->getPitch(),
                                                         frame_format).mirrored()
                                                     , QQuickWindow::TextureOwnsGLTexture);
-
-    texture_node->setFiltering(filter);
-
-    texture_node->setHorizontalWrapMode(QSGTexture::ClampToEdge);
-    texture_node->setVerticalWrapMode(QSGTexture::ClampToEdge);
 
 }
 
@@ -308,79 +271,48 @@ inline bool VideoItem::limitFps()
     return false;
 }
 
-void VideoItem::paint()
+void VideoItem::cleanup()
 {
-    if (m_run && !limitFps()) {
+    if (texture) {
+        texture->deleteLater();
+        texture = nullptr;
+    }
+}
+
+QSGNode *VideoItem::updatePaintNode(QSGNode *old_node, UpdatePaintNodeData *paint_data)
+{
+    Q_UNUSED(paint_data)
+
+    if (!aspectRatio())
+        setAspectRatio(core->getAspectRatio());
+
+    if (run() && !limitFps()) {
         core->doFrame();
         fps_count++;
 
         // Sets texture from core->getImageData();
-        setTexture(QSGTexture::Linear);
+        setTexture();
     }
 
-
-    // Sets viewport size, and enables / disables opengl functionality.
-    initGL();
-
-    // Binds texture to opengl context
-    texture_node->bind();
-
-    if (!m_program) {
-        // constructs vertex & frag shaders and links them.
-        initShader();
+    QSGSimpleTextureNode *tex_node = nullptr;
+    if (old_node) {
+        tex_node = static_cast<QSGSimpleTextureNode *>(old_node);
+    }
+    else {
+        tex_node = new QSGSimpleTextureNode();
     }
 
+    tex_node->setTexture(texture);
+    tex_node->setTextureCoordinatesTransform(QSGSimpleTextureNode::MirrorVertically);
+    tex_node->setRect(boundingRect());
+    tex_node->setFiltering(static_cast<QSGTexture::Filtering>(filtering()));
 
-    // Makes this shader program the current shader affecting the window.
-    m_program->bind();
+    return tex_node;
 
-    // Allows 0 to be used as variable id
-    m_program->enableAttributeArray(0);
-    m_program->enableAttributeArray(1);
-
-    // Holds vertice values for triangle strip.
-    // GLfloat is a cross platform macro for standard float
-    // Triangle strip coords
-    GLfloat values[] = {
-        -1, -1,
-        1, -1,
-        -1, 1,
-        1, 1
-    };
-
-    // Texture coords
-    GLfloat texture[] = {
-        0, 0,
-        1, 0,
-        0, 1,
-        1, 1,
-    };
-
-    // Sets location 0 equal to vertices in values array
-    m_program->setAttributeArray(0, QOpenGLTexture::Float32, values, 2);
-
-    m_program->setAttributeArray(1, QOpenGLTexture::Float32, texture, 2);
-
-    // Draws processed triangle stip onto the screen.
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
-    m_program->disableAttributeArray(0);
-    m_program->disableAttributeArray(1);
-    m_program->release();
-
-    // Loop forever;
-    window()->update();
 }
 
-void VideoItem::cleanup()
+void VideoItem::unload()
 {
-    // resets shader program
-    if (m_program) {
-        delete m_program;
-        m_program = nullptr;
-    }
-    if (texture_node) {
-        delete texture_node;
-        texture_node = nullptr;
-    }
+    core->unload();
 }
+

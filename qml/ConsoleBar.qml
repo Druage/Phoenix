@@ -12,42 +12,132 @@ Rectangle {
     property real progressValue: phoenixLibrary.progress;
     property string progressText: phoenixLibrary.label;
 
-    ListView {
-        id: listView;
+    Rectangle {
+        id: rightBord;
         anchors {
             top: parent.top;
-            topMargin: 15;
+            bottom: parent.bottom;
+            right: parent.right;
+        }
+        width: 1;
+        color: "#1a1a1a";
+    }
+
+    Row {
+        id: leftBord;
+        anchors {
+            left: parent.left;
+            top: parent.top;
+            bottom: parent.bottom;
         }
 
-        height: parent.height / 2;
-        snapMode: ListView.SnapToItem;
-        orientation: ListView.Vertical;
-        interactive: true;
-        spacing: 5;
-        highlightFollowsCurrentItem: false;
+        Rectangle {
+            anchors {
+                top: parent.top;
+                bottom: parent.bottom;
+            }
+            width: 1;
+            color: root.borderColor;
+        }
 
-        header: Item {
-            height: 25;
-            width: parent.width;
-            Label {
-                anchors {
-                    left: parent.left;
-                    leftMargin: 25;
-                    horizontalCenter: parent.horizontalCenter;
-                }
+        //Rectangle {
+        //    anchors {
+         //       top: parent.top;
+        //        bottom: parent.bottom;
+         //   }
+        //    width: 1;
+         //   color: "#191919";
+        //}
+    }
+
+    Rectangle {
+        id: consoleHeader;
+        height: 36;
+        color: parent.color;
+        z: listView.z + 1;
+        anchors {
+            top: parent.top;
+            //topMargin: 12;
+            left: parent.left;
+            right: parent.right;
+            rightMargin: 1;
+        }
+
+        MouseArea {
+            id: mouse;
+            anchors.fill: parent;
+            onClicked: {
+                if (listView.retractList)
+                    listView.retractList = false;
+                else
+                    listView.retractList = true;
+            }
+
+        }
+
+
+
+        Row {
+            anchors {
+                left: parent.left;
+                top: parent.top;
+                topMargin: 12;
+                leftMargin: 12;
+                horizontalCenter: parent.horizontalCenter;
+            }
+
+
+            Text {
                 renderType: Text.QtRendering;
                 text: "Consoles";
                 color: "#f1f1f1";
                 font {
                     bold: true;
                     family: "Sans";
-                    pixelSize: 13;
+                    pixelSize: 12;
+                }
+            }
+            Image {
+                y: 2;
+                source: "../assets/arrow-down-b.png";
+                fillMode: Image.PreserveAspectFit;
+                height: 14;
+                width: 20;
+                sourceSize {
+                    width: 25;
+                    height: 25;
                 }
             }
         }
+    }
+
+    ListView {
+        id: listView;
+        visible: (height !== 0);
+        anchors {
+            top: consoleHeader.bottom;
+            //bottom: parent.bottom;
+            right: parent.right;
+            left: parent.left;
+            topMargin: 0;
+        }
+
+        height: retractList ? 0 : 500;
+
+        Behavior on height {
+            PropertyAnimation {}
+        }
+
+        snapMode: ListView.SnapToItem;
+        orientation: ListView.Vertical;
+        interactive: true;
+        highlightFollowsCurrentItem: false;
+
+        property bool retractList: false;
 
         highlight: Item {
             id: highlightItem;
+            visible: !listView.retractList;
             height: listView.currentItem.height;
             width: listView.width;
             anchors.verticalCenter: listView.currentItem.verticalCenter;
@@ -57,16 +147,7 @@ Rectangle {
                 height: parent.height;
                 width: parent.width;
 
-                Rectangle {
-                    id: topBorder;
-                    color: "#111111";
-                    anchors {
-                        left: parent.left;
-                        right: parent.right;
-                        top: parent.top;
-                    }
-                    height: 1;
-                }
+
 
 
                 Rectangle {
@@ -78,18 +159,77 @@ Rectangle {
                         bottom: parent.bottom;
                     }
                     color: listView.currentItem ? "#171717" : "#000000FF";
+                    Rectangle {
+                        id: topBorder;
+                        color: "#f27b77";
+                        anchors {
+                            left: parent.left;
+                            leftMargin: leftBord.width;
+                            top: parent.top;
+                        }
+                        height: 2;
+                        width: 4;
+                    }
+
+                    Row {
+                        // leftAccent;
+                        anchors {
+                            left: parent.left;
+                            leftMargin: leftBord.width;
+                            bottom: bottomB.top;
+                            top: topBorder.bottom;
+                        }
+
+                        Rectangle {
+                            anchors {
+                                top: parent.top;
+                                bottom: parent.bottom;
+                            }
+                            width: 1;
+                            color: "#db5753";
+                        }
+
+                        Rectangle {
+                            anchors {
+                                top: parent.top;
+                                bottom: parent.bottom;
+                            }
+                            width: 3;
+                            color: "#e8433f";
+                        }
+
+                    }
+
+                    Column {
+                        id: bottomB;
+                        anchors {
+                            right: parent.right;
+                            rightMargin: rightBord.width;
+                            left: parent.left;
+                            leftMargin: leftBord.width;
+                            bottom: parent.bottom;
+                        }
+
+                        Rectangle {
+                            color: "#a22f2c";
+                            anchors {
+                                left: parent.left;
+                            }
+                            width: 4;
+                            height: 2;
+                        }
+                        Rectangle {
+                            color: "#474747";
+                            anchors {
+                                left: parent.left;
+                                right: parent.right;
+                            }
+                            height: 1;
+                        }
+                    }
                 }
 
-                Rectangle {
-                    id: buttomBorder;
-                    color: "#2b2b2b";
-                    anchors {
-                        left: parent.left;
-                        right: parent.right;
-                        bottom: parent.bottom;
-                    }
-                    height: 1;
-                }
+
             }
         }
 
@@ -100,53 +240,47 @@ Rectangle {
             topMargin: 10;
         }
 
-        model: ListModel {
-            ListElement {title: "All"; icon: "";}
-            ListElement {title: "Nintendo (NES)"; icon: "/assets/consoleicons/nes.png";}
-            ListElement {title: "Super Nintendo (SNES)"; icon: "/assets/consoleicons/snes.png";}
-            ListElement {title: "Nintendo 64"; icon: "/assets/consoleicons/mupen64plus.png";}
-            ListElement {title: "FFmpeg"; icon: "/assets/consoleicons/ffmpeg.png";}
-            ListElement {title: "Sony PlayStation"; icon: "/assets/consoleicons/ps1.png";}
-            ListElement {title: "Game Boy Advance"; icon: "/assets/consoleicons/gba.png";}
-            ListElement {title: "Game Boy Color"; icon: "/assets/consoleicons/gbcolor.png";}
-            ListElement {title: "Nintendo DS"; icon: "/assets/consoleicons/nds.png";}
-            ListElement {title: "DOSBox"; icon: "/assets/consoleicons/dosbox.png";}
-            ListElement {title: "Dinothawr"; icon: "/assets/consoleicons/dinothawr.png";}
-        }
+        model: phoenixLibrary.systemsModel();
 
         ExclusiveGroup {
             id: consoleGroup
         }
 
         delegate: Item {
-            height: 33;
+            //visible: !listView.retractList;
+            height: 22;
             width: consoleBar.width;
             Row {
                 id: row;
-                anchors.fill: parent;
-                anchors.leftMargin: 50;
-                spacing: 10;
+                anchors {
+                    fill: parent;
+                    leftMargin: 25;
+                }
+                spacing: 7;
 
                 Image {
                     anchors.verticalCenter: parent.verticalCenter;
-                    source: icon;
+                    source: phoenixLibrary.systemIcon(modelData);
+                    fillMode: Image.PreserveAspectFit;
                     sourceSize {
-                        height: 20;
-                        width: 20;
+                        height: 24;
+                        width: 24;
                     }
                     height: 20;
                     width: 20;
                 }
 
-                Label {
+                Text {
                     id: consoleItem;
                     anchors.verticalCenter: parent.verticalCenter;
-                    text: title;
+                    width: 140;
+                    text: modelData;
                     color: "#f1f1f1";
                     renderType: Text.QtRendering;
+                    elide: Text.ElideRight;
                     font {
                         family: "Sans";
-                        pixelSize: 13;
+                        pixelSize: 11;
                     }
                 }
             }
@@ -155,19 +289,26 @@ Rectangle {
                 anchors.fill: parent;
                 onClicked: {
                     listView.currentIndex = index;
+                    if (modelData === "All") {
+                        phoenixLibrary.model().setFilter("title LIKE ?", ['%%'])
+                    }
+                    else {
+                        phoenixLibrary.model().setFilter("system = ?", [modelData]);
+                    }
                 }
             }
         }
     }
 
-    Label {
+    Text {
         id: favorites;
         z: listView.z + 1;
-        text: "Favorites";
+        //text: "Favorites";
+        renderType: Text.QtRendering;
 
         font {
             bold: true;
-            pixelSize: 15;
+            pixelSize: 12;
             family: "Sans";
         }
 
@@ -183,20 +324,108 @@ Rectangle {
     Rectangle {
         id: progressArea;
         z: 1;
-        visible: consoleBar.progressText !== "";
+        visible: false;//consoleBar.progressText !== "";
         anchors {
             bottom: parent.bottom;
             left: parent.left;
+            leftMargin: leftBord.width;
             right: parent.right;
+            rightMargin: rightBord.width;
         }
 
         height: 75;
-        color: "#242323";
+        color: "#2e2e2e";
+
+        Column {
+            id: _topBord;
+            anchors {
+                left: parent.left;
+                right: parent.right;
+                top: parent.top;
+            }
+
+            Rectangle {
+                anchors {
+                    left: parent.left;
+                    right: parent.right;
+                }
+                height: 1;
+                color: root.borderColor;
+            }
+
+            Rectangle {
+                anchors {
+                    left: parent.left;
+                    right: parent.right;
+                }
+                height: 1;
+                color: "#474747";
+            }
+        }
+
+        Rectangle {
+            color: "#383838";
+            anchors {
+                right: parent.right;
+                top: _topBord.bottom;
+                bottom: parent.bottom;
+            }
+            width: 1;
+        }
+
+        Rectangle {
+            color: "#383838";
+            anchors {
+                left: parent.left;
+                top: _topBord.bottom;
+                bottom: parent.bottom;
+            }
+            width: 1;
+        }
+
+        Column {
+            id: bottomBord;
+            anchors {
+                left: parent.left;
+                right: parent.right;
+                bottom: parent.bottom;
+            }
+
+            Rectangle {
+                id: bottomBorder1;
+                anchors {
+                    left: parent.left;
+                    right: parent.right;
+                }
+                height: 1;
+                color: "#404040";
+            }
+
+            Rectangle {
+                id: bottomBorder2;
+                anchors {
+                    left: parent.left;
+                    right: parent.right;
+                }
+                height: 1;
+                color: "#1a1a1a";
+            }
+
+            Rectangle {
+                id: bottomBorder3;
+                anchors {
+                    left: parent.left;
+                    right: parent.right;
+                }
+                height: 1;
+                color: root.borderColor;
+            }
+        }
 
         Column {
             spacing: 4;
             anchors {
-                verticalCenterOffset: -5;
+                verticalCenterOffset: 0;
                 centerIn: parent;
             }
             //anchors {
@@ -228,8 +457,7 @@ Rectangle {
 
                 style: ProgressBarStyle {
                     background: Rectangle {
-                        color: "#1a1a1a";
-                        //opacity: 0.8;
+                        color: "#0b0b0b";
                         implicitWidth: 175;
                         implicitHeight: 4;
                     }

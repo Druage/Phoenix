@@ -2,40 +2,35 @@
 #define PHOENIXLIBRARY_H
 
 #include <QObject>
-#include <QDirIterator>
 #include <QStringList>
-#include <QCryptographicHash>
-#include <QFile>
+#include <QVariantList>
 #include <QThread>
-#include <QSqlQuery>
-#include <QResource>
-#include <QXmlStreamReader>
 
 #include "thegamesdb.h"
 #include "gamelibrarymodel.h"
-#include "logging.h"
+#include "librarydbmanager.h"
+#include "platformmanager.h"
+#include "coremodel.h"
+#include "systemdatabase.h"
 
-class PhoenixLibrary: public QObject {
+class PhoenixLibrary : public QObject
+{
     Q_OBJECT
-    Q_PROPERTY(QString folderPath READ folderPath WRITE setFolderPath NOTIFY folderPathChanged)
     Q_PROPERTY(qreal progress READ progress WRITE setProgress NOTIFY progressChanged)
     Q_PROPERTY(QString label READ label WRITE setLabel NOTIFY labelChanged)
+    Q_PROPERTY(int count READ count NOTIFY countChanged)
+    Q_ENUMS(Console);
+    Q_PROPERTY(bool importUrls READ importUrls WRITE setImportUrls NOTIFY importUrlsChanged)
 
 public:
     PhoenixLibrary();
 
     ~PhoenixLibrary();
 
-    void setFolderPath(QString path);
+    void setFolderPath(QUrl path);
     void setProgress(qreal progress);
     void setLabel(QString label);
-    void setStart(bool start);
-
-
-    QString folderPath()
-    {
-        return m_folder_path;
-    }
+    void setImportUrls(bool importUrls);
 
     QString label() const
     {
@@ -47,45 +42,105 @@ public:
         return m_progress;
     }
 
+    int count() const
+    {
+        return m_count;
+    }
+
+    bool importUrls()
+    {
+        return m_import_urls;
+    }
+
+    enum Console {
+        InvalidConsole = 0,
+        All,
+        Atari_Lynx,
+        IBM_PC,
+        Nintendo_NES,
+        Nintendo_SNES,
+        Nintendo_Game_Boy,
+        Nintendo_GBA,
+        Nintendo_DS,
+        Sega_Master_System,
+        Sega_Mega_Drive,
+        Sega_Game_Gear,
+        Sega_CD,
+        Sega_32X,
+        Sony_PlayStation,
+        Arcade,
+        FFMpeg,
+        Last
+    };
+    // Can't use template parameters with Q_PROPERTY
+    typedef QMap<Console, QString> ConsoleMap;
+
+    Q_PROPERTY(ConsoleMap consoles READ consoles CONSTANT)
+    ConsoleMap consoles() const
+    {
+        return {};
+    }
+
 public slots:
-    void scanFolder();
-    void setModel(GameLibraryModel *model)
-    {
-        m_model = model;
-        emit modelChanged();
-    }
+    void handleOnlineDatabaseResponse(GameData* data);
+    void startAsyncScan(QUrl path);
+    bool scanFolder(QUrl folder_path);
+    //GameData *scrapeInfo(QString name, QString system);
+    //GameData *asyncScrapeInfo(QString name, QString system);
+    void resetAll();
+    GameLibraryModel *model() { return m_model; }
+    void deleteRow(QString title);
+    QString getSystem(QString system);
+    QList<QObject *> coresModel(QString system);
+    QStringList systemsModel();
+    bool setPreferredCore(QString system, QString new_core);
+    QString systemIcon(QString system);
+    QString showPath(int index, QString system);
+    void cacheUrls(QList<QUrl> list);
+    void importDroppedFiles();
 
-    void startImport(bool start);
-    GameLibraryModel *model()
-    {
-        return m_model;
-    }
 
-private slots:
 
 signals:
-    void folderPathChanged(QString);
-    void queryStaged();
     void labelChanged();
     void progressChanged();
-    void startChanged();
-    void modelChanged();
-    void scanComplete();
+    void countChanged();
+    void importUrlsChanged();
 
 private:
+    LibraryDbManager dbm;
     QThread *import_thread;
-    TheGamesDB *scraper;
+    //TheGamesDB scraper;
     GameLibraryModel *m_model;
-    QString m_folder_path;
     QString m_label;
+    PlatformManager platform_manager;
     int m_progress;
-    bool m_start;
+    int m_count;
+    QList<QUrl> file_urls;
+    bool m_import_urls;
+
+    SystemDatabase system_db;
+
+    QMap<QString, QList<QObject *>> cores_for_console;
+
+    const QMap<Console, QString> m_consoles;
 
 
-    QString getSystem(QString suffix);
+
+    const QMap<QString, QString> icon_for_console;
+
+    QStringList excluded_consoles;
+    TheGamesDB* thegamesdb;
+
+    QMap<Console, QVariantMap> core_for_console;
+
+    QMap<QString, QVariantMap> core_for_extension;
+
     void loadXml(QString file_path);
-    void addFilters(QStringList &filter_list);
-
+    QRegularExpressionMatch parseFilename(QString filename);
+    QByteArray generateSha1Sum(QString file);
+    void scanSystemDatabase(QByteArray hash, QString &name, QString &system);
 };
+
 
 #endif // PHOENIXLIBRARY_H

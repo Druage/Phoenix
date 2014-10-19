@@ -3,29 +3,32 @@ import QtQuick.Controls 1.1
 import QtQuick.Controls.Styles 1.1
 import QtQuick.Layouts 1.1
 import QtGraphicalEffects 1.0
+import Qt.labs.settings 1.0
+import phoenix.video 1.0
+import QtQuick.Window 2.0
 
-import VideoItem 1.0
 
-
-Item {
+Rectangle {
     id: gameView;
     width: 800;
     height: 600;
     visible: true;
-
+    color: "black";
+    property string stackName: "gameview";
     property bool run: false;
     property string gameName: "";
     property string coreName: "";
-    property string systemDirectory: "";
-    property string saveDirectory: "";
     property bool loadSaveState: false
     property bool saveGameState: false;
-    property real volumeLevel: 1.0;
-    property string prevView: "";
-    property bool ranOnce: false;
-    property bool screenTimer: false;
+    property alias video: videoItem;
     property alias gameMouse: gameMouse;
+    property string previousViewIcon: "";
 
+    Component.onCompleted: {
+        root.itemInView = "game";
+        root.gameShowing = true;
+    }
+    Component.onDestruction: root.gameShowing = false;
 
     function timerEffects() {
         if (gameMouse.cursorShape !== Qt.ArrowCursor)
@@ -37,13 +40,17 @@ Item {
     }
 
     onSaveGameStateChanged: {
-        if (saveGameState)
+        if (saveGameState) {
             videoItem.saveGameState();
+            saveGameState = false;
+        }
     }
 
     onLoadSaveStateChanged: {
-        if (loadSaveState)
+        if (loadSaveState) {
             videoItem.loadGameState();
+            loadSaveState = false;
+        }
     }
 
 
@@ -51,14 +58,12 @@ Item {
         if (visible) {
             ranOnce = true;
             timerEffects();
-            headerBar.opacity = 0.75;
             headerBar.sliderVisible = false;
             headerBar.searchBarVisible = false;
             prevView = headerBar.viewIcon;
             headerBar.viewIcon = "../assets/GameView/home.png";
         }
         else {
-            headerBar.opacity = 1.0;
             headerBar.sliderVisible = true;
             headerBar.searchBarVisible = true;
             headerBar.timer.stop();
@@ -74,23 +79,32 @@ Item {
         onMouseXChanged: timerEffects();
         onMouseYChanged: timerEffects();
         onDoubleClicked: {
-            if (root.visibility == 5)
-                root.visibility = "Windowed";
-            else
-                root.visibility = "FullScreen";
+            root.swapScreenSize();
         }
     }
 
     VideoItem {
         id: videoItem;
         focus: true;
-        anchors.fill: parent;
-        systemDirectory: gameView.systemDirectory;
-        saveDirectory: gameView.saveDirectory;
+        anchors {
+           centerIn: parent;
+        }
+
+        height: parent.height;
+        width: stretchVideo ? parent.width : height * aspectRatio;
+
+        systemDirectory: root.systemDirectory;
+        saveDirectory: root.saveDirectory;
         libcore: gameView.coreName;
         game: gameView.gameName;
         run: gameView.run;
-        volume: gameView.volumeLevel;
+        volume: root.volumeLevel;
+        filtering: root.filtering;
+        stretchVideo: root.stretchVideo;
+
+        //property real ratio: width / height;
+        //onRatioChanged: console.log(ratio)
+
         onRunChanged: {
             if (run)
                 headerBar.playIcon = "/assets/GameView/pause.png";
@@ -100,8 +114,8 @@ Item {
 
 
         onSetWindowedChanged: {
-            if (root.visibility != 2)
-                root.visibility = "Windowed";
+            if (root.visibility == Window.FullScreen)
+                root.swapScreenSize();
         }
 
         Component.onDestruction: {
@@ -122,7 +136,7 @@ Item {
             right: parent.right;
             top: parent.top;
             rightMargin: 5;
-            topMargin: 5;
+            topMargin: 60;
         }
     }
 }

@@ -1,11 +1,5 @@
 <RCC>
 <qresource prefix="/databases">
-    <file>32X.xml</file>
-    <file>Game_Boy_Advance.xml</file>
-    <file>Game_Boy.xml</file>
-    <file>Game_Boy_Color.xml</file>
-    <file alias="Nintendo (NES).xml">Nintendo_(NES).xml</file>
-    
-
+    <file>systemdatabase.db</file>
 </qresource>
 </RCC>

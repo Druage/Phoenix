@@ -56,7 +56,9 @@ bool InputDeviceMapping::populateFromSettings(QSettings &s)
             continue;
         QString eventstr = val.toString();
 
-        setMapping(eventFromString(eventstr), i.value());
+        InputDeviceEvent *ev = eventFromString(eventstr);
+        if (ev != nullptr)
+            setMapping(ev, i.value());
     }
 
     return true;
@@ -66,4 +68,25 @@ bool InputDeviceMapping::populateFromDict(QVariantMap deviceinfo)
 {
     setDeviceType(RETRO_DEVICE_JOYPAD); // TODO
     return true;
+}
+
+QString InputDeviceMapping::getMappingByRetroId(QString retroId)
+{
+    for (auto m = mapping.begin(); m != mapping.end(); ++m) {
+        if (m->second == retroId.toInt())
+            return QString(*m->first);
+    }
+    return "None";
+}
+
+void InputDeviceMapping::remapMapping(QString previousEvent, QVariant event, QString retroId)
+{
+    // Remove the previous mapping
+    auto prevEv = eventFromString(previousEvent);
+    if (prevEv != nullptr)
+        mapping.erase(prevEv);
+
+    InputDeviceEvent *ev = event.value<InputDeviceEvent *>();
+    if (ev)
+        setMapping(ev, retroId.toUInt());
 }

@@ -1,32 +1,188 @@
 import QtQuick 2.3
 import QtQuick.Controls 1.1
+import QtQuick.Controls.Styles 1.1
 import QtGraphicalEffects 1.0
 import QtQuick.Layouts 1.1
 
 import phoenix.image 1.0
 
-
 Rectangle {
     id: gameGrid;
-    color: "#1d1e1e";
+    color: "#262626";
     height: 500;
     width: 500;
 
-    property string itemBackgroundColor: "#b85353";
+    property string itemBackgroundColor: "red";
     property real zoomFactor: 1;
     property bool zoomSliderPressed: false;
     property bool resizeGrid: false;
+
+    Rectangle {
+        // bottomBorder;
+        z: gridView.z + 1;
+        anchors {
+            bottom: parent.bottom;
+            left: parent.left;
+            right: parent.right;
+        }
+        height: 1;
+        color: "#0b0b0b";
+    }
+
+    Component.onCompleted: {
+        root.itemInView = "grid";
+    }
 
     onZoomFactorChanged: {
         if (gridView.cellHeight * zoomFactor !== gridView.cellHeight)
             resizeGrid = true;
     }
 
+    Rectangle {
+        id: descriptiveArea;
+        color: "#212121";
+        height: expanded ? 175 : 0;
+        property bool expanded: false;
+
+        anchors {
+            right: parent.right;
+            top: parent.top;
+            left: parent.left;
+        }
+
+        Behavior on height {
+            PropertyAnimation {}
+        }
+
+        Rectangle {
+            color: "#1a1a1a";
+            anchors {
+                fill: parent;
+                leftMargin: 1;
+                rightMargin: 1;
+                bottomMargin: 2;
+                topMargin: 1;
+            }
+
+            Column {
+                anchors {
+                    left: parent.left;
+                    top: parent.top;
+                    margins: 15;
+                }
+
+                Text {
+                    text: gridView.currentItem ? gridView.currentItem.titleName : "";
+                    color: "#f1f1f1";
+                    renderType: Text.QtRendering;
+                    font {
+                        pixelSize: 16;
+                        bold: true;
+                        family: "Sans";
+                    }
+                }
+
+                Text {
+                    text: gridView.currentItem ? gridView.currentItem.systemName : "";
+                    color: "gray";
+                    renderType: Text.QtRendering;
+                    font {
+                        pixelSize: 14;
+                        family: "Sans";
+                    }
+                }
+            }
+
+            Image {
+                opacity: 0.3;
+                anchors {
+                    right: parent.right;
+                    top: parent.top;
+                    topMargin: 12;
+                    rightMargin: 12;
+                }
+
+                source: gridView.currentItem ? gridView.currentItem.imageSource : "";
+                height: 125;
+                width: 125;
+            }
+
+
+            Row {
+                anchors {
+                    bottom: parent.bottom;
+                    horizontalCenter: parent.horizontalCenter;
+                    bottomMargin: 5;
+                }
+                spacing: 5;
+
+                PhoenixNormalButton {
+                    text: "Play";
+                    onClicked: {
+                        console.log("gameName: " + gridView.currentItem.fileName);
+                        console.log("system: " + gridView.currentItem.systemName);
+                        console.log("system Path: " + gridView.currentItem.systemPathName);
+                        var core = phoenixLibrary.getSystem(gridView.currentItem.systemName);
+                        console.log("core: " + core);
+                        if (gridView.currentItem.fileName !== "" && core !== "") {
+                            windowStack.push({item: gameView, properties: {coreName: core, gameName: gridView.currentItem.fileName, run: true}});
+                        }
+                    }
+                }
+
+                PhoenixWarningButton {
+                    text: "Remove Game";
+                    onClicked:  {
+                        phoenixLibrary.deleteRow(gridView.currentItem.titleName);
+                        descriptiveArea.expanded = false;
+                    }
+                }
+            }
+        }
+
+        Rectangle {
+            id: botBorder;
+            height: 1;
+            color: "#333333";
+            anchors {
+                bottom: parent.bottom;
+                left: parent.left;
+                right: parent.right;
+            }
+        }
+    }
+
+    PhoenixScrollView {
+        id: scrollView;
+        anchors {
+            top: descriptiveArea.bottom;
+            left: parent.left;
+            bottom: parent.bottom;
+            right: parent.right;
+        }
+
+        MouseArea {
+            id: rootMouse;
+            anchors.fill: parent;
+            enabled: gridView.holdItem;
+            propagateComposedEvents: false;
+            hoverEnabled: true;
+            onClicked:  {
+                gridView.holdItem = false;
+                descriptiveArea.expanded = false;
+                gridView.holdItem = false;
+                if (gridView.currentItem)
+                    gridView.currentItem.glowColor = "black";
+            }
+        }
 
     GridView {
         id: gridView;
 
         property bool checked: false;
+        property bool holdItem: false;
+
+        onCountChanged: console.log(count)
 
         snapMode: GridView.NoSnap;
 
@@ -42,7 +198,6 @@ Rectangle {
             }
 
         ]
-
 
         Behavior on cellHeight {
             PropertyAnimation {
@@ -61,30 +216,38 @@ Rectangle {
             fill: parent;
             leftMargin: (parent.width >= cellWidth) ? ((parent.width % cellWidth) / 2) : 0;
             rightMargin: leftMargin;
-            topMargin: 20;
-            bottomMargin: 20;
+            topMargin: 40;
+            bottomMargin: 40;
         }
 
-        cellWidth: 100;
-        cellHeight: 100;
+        cellWidth: 300;
+        cellHeight: 300;
 
         model: phoenixLibrary.model();
+        highlightFollowsCurrentItem: false;
 
 
         ExclusiveGroup {
             id: gridGroup;
         }
 
-
         delegate: Item {
             id: gridItem;
-            height: gridView.cellHeight;
-            width: gridView.cellWidth;
+            height: gridView.cellHeight - (50 * gameGrid.zoomFactor);
+            width: gridView.cellWidth; //- (10 *  gameGrid.zoomFactor);
 
+            property string glowColor: "black";
+            property string imageSource: !artwork ? "qrc:/assets/No-Art.png" : artwork;
+            property string titleName: title ? title : "";
+            property string systemName: system ? system : "";
+            property string fileName: filename ? filename : "";
+            property string systemPathName: system_path ? system_path : "";
 
             Item {
+                id: subItem;
                 anchors.fill: parent;
-                Rectangle {
+
+                Item  {
                     id: imageHighlight;
 
                     property ExclusiveGroup exclusiveGroup: gridGroup;
@@ -95,34 +258,38 @@ Rectangle {
                     }
 
                     width: parent.width;
-                    height: parent.height * 0.7;
-                    color: checked ? gameGrid.itemBackgroundColor : "#000000FF";
+                    height: parent.height;
 
-                    onExclusiveGroupChanged: {
-                        if (exclusiveGroup) {
-                            exclusiveGroup.bindCheckable(imageHighlight);
-                        }
+
+                    RectangularGlow {
+                        id: rectangularGlow;
+                        visible: true;
+                        height: image.paintedHeight;
+                        width: image.paintedWidth;
+                        anchors.centerIn: parent;
+                        glowRadius: mouseArea.containsMouse ? 5 : 2;
+                        spread: mouseArea.containsMouse ? 0.5 : 0.1;
+                        color:  gridItem.glowColor;
+                        cornerRadius: 3;
                     }
-
                     Image {
                         id: image;
                         anchors.fill: parent;
                         anchors.margins: 10;
-                        source: artwork;
-                        sourceSize {
-                            height: 200;
-                            width: 200;
-                        }
-
+                        source: gridItem.imageSource;
                         fillMode: Image.PreserveAspectFit;
+                        asynchronous: true;
+                        sourceSize {
+                            height: 275;
+                            width: 275;
+                        }
 
                         CachedImage {
                             id: cachedImage;
                             imgsrc: image.source;
                             folder: "Artwork";
-                            fileName: title;
+                            fileName: gridItem.titleName ? gridItem.titleName : "";
                             onLocalsrcChanged: {
-                                //console.log(localsrc);
                                 image.source = localsrc;
                             }
                         }
@@ -130,54 +297,54 @@ Rectangle {
                         Component.onCompleted: cachedImage.start();
 
                         MouseArea {
+                            id: mouseArea;
+                            propagateComposedEvents: true;
                             anchors.fill: parent;
-                            onPressed: {
-                                if (imageHighlight.checked)
-                                    imageHighlight.checked = false;
-                                else
-                                    imageHighlight.checked = true;
-                                if (gameView.coreName == "")
-                                    gameView.coreName = "C:/Users/lee/Desktop/32_cores/gambatte_libretro.dll"
-                                if (gameView.gameName == "")
-                                    gameView.gameName = "C:/Users/lee/Documents/Emulation/GBC/Pokemon Prism (U).gbc";
-                                gameView.run = true;
-                                gameView.loadSaveState = true;
-                                windowStack.push({item: gameView, replace: true });
+                            hoverEnabled: true;
+                            enabled: !rootMouse.enabled;
+                            property bool containsMouse: false;
+
+                            onPressed:  {
+                                gridView.holdItem = pressed;
+                                descriptiveArea.expanded = pressed;
+                                containsMouse = pressed;
+                            }
+                            onClicked: {
+                                gridView.currentIndex = index;
+                                if (gridView.currentItem.glowColor === "#db5753")
+                                    gridView.currentItem.glowColor = "black";
+                                else {
+                                    gridView.currentItem.glowColor = "#db5753"
+                                }
+
+                                if (windowStack.currentItem.run)
+                                    headerBar.userText = gridItem.titleName;
 
                             }
                         }
                     }
                 }
 
-                /*DropShadow {
-                    source: imageHighlight;
-                    visible: !gameGrid.zoomSliderPressed;
-                    anchors.fill: source;
-                    fast: false;
-                    horizontalOffset: 3;
-                    verticalOffset: 6;
-                    radius: 8.0;
-                    samples: 16;
-                    color: "#80000000";
-                    transparentBorder: true;
-                }*/
-
                 Text {
                     id: titleLabel;
                     renderType: Text.QtRendering;
                     anchors {
+                        //horizontalCenter: parent.horizontalCenter;
                         left: parent.left;
+                        leftMargin: 20;
+                        //leftMargin: 50;
                         right: parent.right;
+                        rightMargin: 20;
                         bottom: parent.bottom;
-                        bottomMargin: titleLabel.font.pixelSize / 2;
+                        bottomMargin: -titleLabel.font.pixelSize * 2;
                     }
 
-                    text: title;
+                    text: gridItem.titleName;
                     color: "#f1f1f1";
 
                     font {
                         bold: true;
-                        pixelSize: 6 + gridView.cellWidth / 20;
+                        pixelSize: 2 + gridView.cellWidth / 23;
                         family: "Sans";
                     }
 
@@ -186,5 +353,6 @@ Rectangle {
                 }
             }
         }
+    }
     }
 }

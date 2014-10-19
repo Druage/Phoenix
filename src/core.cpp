@@ -33,7 +33,6 @@ Core* Core::core = nullptr;
 Core::Core()
 {
     libretro_core = nullptr;
-    video_data = nullptr;
     audio_buf = nullptr;
     system_av_info = new retro_system_av_info();
     system_info = new retro_system_info();
@@ -45,14 +44,10 @@ Core::Core()
     video_width = 0;
     pixel_format = RETRO_PIXEL_FORMAT_UNKNOWN;
 
-    audio_data = nullptr;
-    audio_frames = 0;
     left_channel = 0;
     right_channel = 0;
 
     is_dupe_frame = false;
-
-    input_manager.scanDevices();
 
     Core::core = this;
 
@@ -60,11 +55,6 @@ Core::Core()
 
 Core::~Core()
 {
-    delete libretro_core;
-    delete system_av_info;
-    delete system_info;
-    delete symbols;
-    Core::core = nullptr;
 
 } // Core::~Core()
 
@@ -88,7 +78,7 @@ bool Core::saveGameState(QString path, QString name)
 
         file->open(QIODevice::WriteOnly);
         if (file->isOpen()) {
-            file->write(QByteArray(static_cast<char *>(data), size));
+            file->write(QByteArray(static_cast<char *>(data), static_cast<int>(size)));
             qCDebug(phxCore) << "Save State wrote to "<< file->fileName();
             file->close();
             delete file;
@@ -215,10 +205,7 @@ bool Core::loadCore(const char *path)
         return true;
         
     }
-    else {
-        return false;
-    }
-    
+
     return false;
     
 } // Core::loadCore()
@@ -237,15 +224,14 @@ bool Core::loadGame(const char *path)
         game_info.data = nullptr;
         game_info.size = 0;
         game_info.meta = "";
-
     }
+
     else {
         // full path not needed, read the file to a buffer and pass that to the core
         QFile game(path);
         
-        if (!game.open(QIODevice::ReadOnly)) {
+        if (!game.open(QIODevice::ReadOnly))
             return false;
-        }
 
         // read into memory
         game_data = game.readAll();
@@ -260,19 +246,33 @@ bool Core::loadGame(const char *path)
     bool ret = symbols->retro_load_game(&game_info);
     
     // Get some info about the game
-    if (ret) {
-        symbols->retro_get_system_av_info(system_av_info);
-        game_geometry = system_av_info->geometry;
-        system_timing = system_av_info->timing;
-        video_width = game_geometry.max_width;
-        video_height = game_geometry.max_height;
-        return true;
-    }
-    else {
+    if (!ret)
         return false;
-    }
+
+    symbols->retro_get_system_av_info(system_av_info);
+    game_geometry = system_av_info->geometry;
+    system_timing = system_av_info->timing;
+    video_width = game_geometry.max_width;
+    video_height = game_geometry.max_height;
+    return true;
     
 } // Core::load_game()
+
+void Core::unload()
+{
+    symbols->retro_unload_game();
+    symbols->retro_deinit();
+    libretro_core->unload();
+    game_data.clear();
+    library_name.clear();
+
+    delete libretro_core;
+    delete system_av_info;
+    delete symbols;
+    delete system_info;
+    qCDebug(phxCore) << "Finished unloading core";
+
+}
 
 //  ________________________
 // |                        |
@@ -281,8 +281,6 @@ bool Core::loadGame(const char *path)
 
 void Core::audioSampleCallback(int16_t left, int16_t right)
 {
-    Core::core->left_channel = left;
-    Core::core->right_channel = right;
     if (core->audio_buf) {
         uint32_t sample = ((uint16_t) left << 16) | (uint16_t) right;
         core->audio_buf->write((const char*)&sample, sizeof(int16_t) * 2);
@@ -292,9 +290,6 @@ void Core::audioSampleCallback(int16_t left, int16_t right)
 
 size_t Core::audioSampleBatchCallback(const int16_t *data, size_t frames)
 {
-
-    core->audio_data = data;
-    core->audio_frames = frames;
     if (core->audio_buf)
         core->audio_buf->write((const char *)data, frames * sizeof(int16_t) * 2);
 
@@ -313,12 +308,10 @@ bool Core::environmentCallback(unsigned cmd, void *data)
             qDebug() << "\tRETRO_ENVIRONMENT_GET_OVERSCAN (2) (handled)";
             // Crop away overscan
             return true;
-            break;
 
         case RETRO_ENVIRONMENT_GET_CAN_DUPE: // 3
             *(bool *)data = true;
             return true;
-            break;
 
         // 4 and 5 have been deprecated
         
@@ -360,21 +353,20 @@ bool Core::environmentCallback(unsigned cmd, void *data)
                     
                 default:
                     qDebug() << "\tError: Pixel format is not supported. (" << pixelformat << ")";
-                    return false;
+                    break;
             }
 
-            break;
+            return false;
         }
 
         case RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS: // 11
             qDebug() << "\tRETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS (11) (handled)";
             Core::core->input_descriptor = *(retro_input_descriptor *)data;
             return true;
-            break;
 
         case RETRO_ENVIRONMENT_SET_KEYBOARD_CALLBACK: // 12
             qDebug() << "\tRETRO_ENVIRONMENT_SET_KEYBOARD_CALLBACK (12) (handled)";
-            Core::core->symbols->retro_keyboard_event = (decltype(symbols->retro_keyboard_event))data;
+            Core::core->symbols->retro_keyboard_event = (decltype(LibretroSymbols::retro_keyboard_event))data;
             break;
 
         case RETRO_ENVIRONMENT_SET_DISK_CONTROL_INTERFACE: // 13
@@ -393,14 +385,14 @@ bool Core::environmentCallback(unsigned cmd, void *data)
                     break;
                 case RETRO_HW_CONTEXT_OPENGLES2:
                     qDebug() << "OpenGL ES 2 context was selected";
-                    Core::core->hw_callback.context_type = RETRO_HW_CONTEXT_OPENGLES2;\
+                    Core::core->hw_callback.context_type = RETRO_HW_CONTEXT_OPENGLES2;
                     break;
                  case RETRO_HW_CONTEXT_OPENGLES3:
                     qDebug() << "OpenGL 3 context was selected";
                     break;
                 default:
                     qCritical() << "RETRO_HW_CONTEXT: " << Core::core->hw_callback.context_type << " was not handled";
-                    return false;
+                    break;
             }
             break;
 
@@ -442,7 +434,7 @@ bool Core::environmentCallback(unsigned cmd, void *data)
         
         case RETRO_ENVIRONMENT_SET_FRAME_TIME_CALLBACK: // 21
             qDebug() << "RETRO_ENVIRONMENT_SET_FRAME_TIME_CALLBACK (21)";
-            Core::core->symbols->retro_frame_time = (decltype(symbols->retro_frame_time))data;
+            Core::core->symbols->retro_frame_time = (decltype(LibretroSymbols::retro_frame_time))data;
             break;
 
         case RETRO_ENVIRONMENT_SET_AUDIO_CALLBACK: // 22
@@ -465,11 +457,10 @@ bool Core::environmentCallback(unsigned cmd, void *data)
             qDebug() << "\tRETRO_ENVIRONMENT_GET_CAMERA_INTERFACE (26)";
             break;
 
-        case RETRO_ENVIRONMENT_GET_LOG_INTERFACE: { // 27
+        case RETRO_ENVIRONMENT_GET_LOG_INTERFACE: {// 27
             struct retro_log_callback *logcb = (struct retro_log_callback *)data;
             logcb->log = logCallback;
             return true;
-            break;
         }
 
         case RETRO_ENVIRONMENT_GET_PERF_INTERFACE: // 28
@@ -572,19 +563,19 @@ void Core::logCallback(enum retro_log_level level, const char *fmt, ...)
     switch (level) {
         case RETRO_LOG_DEBUG:
             qCDebug(phxCore) << outbuf.data();
-        break;
+            break;
         case RETRO_LOG_INFO:
             qCDebug(phxCore) << outbuf.data();
-        break;
+            break;
         case RETRO_LOG_WARN:
             qCWarning(phxCore) << outbuf.data();
-        break;
+            break;
         case RETRO_LOG_ERROR:
             qCCritical(phxCore) << outbuf.data();
-        break;
+            break;
         default:
             qCWarning(phxCore) << outbuf.data();
-        break;
+            break;
     }
 
 } // Core::retro_log()
@@ -594,7 +585,8 @@ void Core::videoRefreshCallback(const void *data, unsigned width, unsigned heigh
     if (data) {
         core->video_data = data;
         core->is_dupe_frame = false;
-    } else {
+    }
+    else {
         core->is_dupe_frame = true;
     }
     core->video_width = width;

@@ -1,3 +1,4 @@
+
 #ifndef CACHEIMAGE_H
 #define CACHEIMAGE_H
 
@@ -14,7 +15,9 @@
 #include <QImage>
 #include <QDir>
 
-class CachedImage : public QObject {
+
+class CachedImage : public QObject
+{
     Q_OBJECT
     //Remote url
     Q_PROPERTY(QString imgsrc READ imgsrc WRITE setImgsrc NOTIFY imgsrcChanged)
@@ -63,4 +66,5 @@ signals:
     void fileNameChanged();
     void cacheLoaded(bool);
 };
+
 #endif // CACHEIMAGE_H

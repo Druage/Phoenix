@@ -8,6 +8,7 @@
 #include "libretro.h"
 
 #include "libretro_types.h"
+#include "inputdeviceevent.h"
 #include "logging.h"
 
 
@@ -23,17 +24,18 @@ public:
 
     virtual ~InputDevice();
 
-    QString deviceName() const { return device_name; }
-
-    const InputDeviceMapping *mapping() const { return m_mapping; };
-
     int16_t state(retro_device_id id) const {
         QMutexLocker lock(&ids_state_mutex);
         return ids_state.value(id, 0);
     }
 
 signals:
-    void inputEventReceived(int32_t event, int16_t value);
+    void inputEventReceived(InputDeviceEvent *ev, int16_t value);
+    void inputEventReceivedQML(QString name, int16_t value);
+
+public slots:
+    QString deviceName() const { return device_name; }
+    InputDeviceMapping *mapping() const { return m_mapping; }
 
 protected:
     void setDeviceName(const char *new_name);

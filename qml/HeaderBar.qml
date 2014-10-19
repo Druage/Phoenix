@@ -2,7 +2,6 @@ import QtQuick 2.3
 import QtQuick.Controls 1.1
 import QtQuick.Layouts 1.1
 import QtQuick.Controls.Styles 1.1
-import QtQuick.Dialogs 1.1
 import QtGraphicalEffects 1.0
 import Qt.labs.settings 1.0
 
@@ -18,18 +17,137 @@ Rectangle {
     property string playIcon: "/assets/GameView/pause.png";
     property bool sliderVisible: true;
     property bool searchBarVisible: true;
+    property real volumeLevel: volumeSlider.value;
+    property string userText: "Phoenix";
+    property string previousViewIcon: "";
 
     property Timer timer: Timer {
         interval: 4000;
         running: false;
 
         onTriggered: {
-            gameView.gameMouse.cursorShape = Qt.BlankCursor;
+            windowStack.currentItem.gameMouse.cursorShape = Qt.BlankCursor;
             headerBar.height = 0;
             if (volumeDropDown.visible) {
                 volumeDropDown.visible = false;
                 volumeBtn.checked = false;
             }
+        }
+    }
+
+    gradient: Gradient {
+        GradientStop {position: 0.0; color: "#2f2f2f";}
+        GradientStop {position: 1.0; color: "#1b1b1b";}
+    }
+
+    Column {
+        id: topBord;
+        anchors {
+            left: parent.left;
+            right: parent.right;
+            top: parent.top;
+        }
+
+        Rectangle {
+            anchors {
+                left: parent.left;
+                right: parent.right;
+            }
+            height: 1;
+            color: root.borderColor;
+        }
+
+        Rectangle {
+            anchors {
+                left: parent.left;
+                right: parent.right;
+                rightMargin: 2;
+            }
+            height: 1;
+            color: "#4d4d4d";
+        }
+    }
+
+    Row {
+        id: leftBord;
+        anchors {
+            left: parent.left;
+            top: parent.top;
+            bottom: parent.bottom;
+        }
+
+        Rectangle {
+            anchors {
+                top: parent.top;
+                bottom: parent.bottom;
+            }
+            width: 1
+            color: root.borderColor;
+        }
+
+        Rectangle {
+            anchors {
+                top: parent.top;
+                bottom: parent.bottom;
+            }
+            width: 1;
+            color: "#292929";
+        }
+    }
+
+    Row {
+        id: rightBord;
+        anchors {
+            right: parent.right;
+            top: topBord.bottom;
+            bottom: parent.bottom;
+        }
+
+        Rectangle {
+            anchors {
+                top: parent.top;
+                bottom: parent.bottom;
+            }
+            width: 1;
+            color: "#292929";
+        }
+
+        Rectangle {
+            anchors {
+                top: parent.top;
+                bottom: parent.bottom;
+            }
+            width: 1;
+            color: root.borderColor;
+        }
+    }
+
+    Column {
+        id: bottomBord;
+        anchors {
+            left: parent.left;
+            right: parent.right;
+            bottom: parent.bottom;
+        }
+
+        Rectangle {
+            id: bottomBorder1;
+            anchors {
+                left: parent.left;
+                right: parent.right;
+            }
+            height: 1;
+            color: "#292929";
+        }
+
+        Rectangle {
+            id: bottomBorder2;
+            anchors {
+                left: parent.left;
+                right: parent.right;
+            }
+            height: 1;
+            color: "#0b0b0b";
         }
     }
 
@@ -44,30 +162,73 @@ Rectangle {
 
     width: 300;
     height: 50;
-    color: headerColor;
+    //color: headerColor;
 
     Rectangle {
-        id: bottomBorder;
-        anchors {
-            left: parent.left;
-            right: parent.right;
-            bottom: parent.bottom;
+        visible: volumeDropDown.visible;
+        z: volumeDropDown.z + 1;
+        onVisibleChanged: {
+            if (visible)
+                headerBar.timer.stop();
+            else {
+                if (windowStack.currentItem !== null) {
+                    if (root.gameShowing)
+                        headerBar.timer.start();
+                }
+            }
         }
-        height: 1;
-        color: "#242424";
+        anchors {
+            bottom: volumeDropDown.top;
+            horizontalCenter: volumeDropDown.horizontalCenter;
+            bottomMargin: -8;
+        }
+        height: 15;
+        width: 15;
+        color: "#2c2c2c";
+
+        Rectangle {
+            anchors {
+                top: parent.top;
+                left: parent.left;
+                right: parent.right;
+            }
+            height: 1;
+            color: "#3b3b3b";
+        }
+        Rectangle {
+            anchors {
+                top: parent.top;
+                left: parent.left;
+                bottom: parent.bottom;
+            }
+            width: 1;
+            color: "#3b3b3b";
+        }
+
+        rotation: 45;
     }
 
     Rectangle {
         id: volumeDropDown;
-        color: "#363535";
+        gradient: Gradient {
+            GradientStop {position: 0.0; color: "#2e2e2e";}
+            GradientStop {position: 1.0; color: "#1b1b1b";}
+        }
+
         height: 200;
         width: 50;
+        radius: 5;
         anchors {
-            left: parent.left;
-            leftMargin: 125;
             top: headerBar.bottom;
-            bottomMargin: 25;
+            topMargin: 0;
+            horizontalCenter: leftButtonRow.horizontalCenter;
+            horizontalCenterOffset: 32;
         }
+        border {
+            width: 1;
+            color: "#333333";
+        }
+
         visible: false;
 
         MouseArea {
@@ -78,6 +239,7 @@ Rectangle {
         }
 
         Slider {
+            id: volumeSlider;
             anchors.centerIn: parent;
             orientation: Qt.Vertical;
             height: parent.height * 0.8;
@@ -85,9 +247,9 @@ Rectangle {
             stepSize: 0.05;
             minimumValue: 0.0;
             maximumValue: 1.0;
-            value: gameView.volumeLevel;
+            value: root.volumeLevel;
             onValueChanged: {
-                gameView.volumeLevel = value;
+                root.volumeLevel = value;
                 if (value > 0.8)
                     volumeBtn.backgroundImage = "../assets/volume-high-8x.png";
                 else if (0.8 > value && value > 0.0)
@@ -96,22 +258,115 @@ Rectangle {
                     volumeBtn.backgroundImage = "../assets/volume-off-8x.png";
 
             }
+            style: SliderStyle {
+                id: sliderStyle;
+
+                handle: Item {
+                    height: 18;
+                    width: 18;
+
+                    Rectangle {
+                        id: zoomHandle;
+                        gradient: Gradient {
+                            GradientStop{ position: 0.0; color: "#f1f1f1";}
+                            GradientStop{ position: 0.5; color: "#f1f2f1";}
+                            GradientStop{ position: 0.7; color: "#e2e2e2";}
+                            GradientStop{ position: 1.0; color: "#cbcacb";}
+
+                        }
+
+                        radius: 10;
+                        anchors.fill: parent;
+                        smooth: true;
+                    }
+                }
+
+                groove: Rectangle {
+                    height: 6;
+                    width: zoomSlider.width;
+                    radius: 6;
+                    color: "#1a1a1a";
+
+                    Rectangle {
+                        color: "#f1f1f1";
+                        anchors {
+                            left: parent.left;
+                            top: parent.top;
+                            bottom: parent.bottom;
+                        }
+                        width: 15 * (volumeSlider.value * 10);
+                        // 14 seems to be the magic number.
+                        // It's a quick and dirty way to make
+                        // the effect work.
+                    }
+
+                    Rectangle {
+                        // topBorder;
+                        anchors {
+                            top: parent.top;
+                            left: parent.left;
+                            right: parent.right;
+                        }
+                        radius: 3;
+                        height: 1;
+                        color: "#1f1f1f";
+                    }
+
+                    Rectangle {
+                        // leftBorder;
+                        anchors {
+                            top: parent.top;
+                            bottom: parent.bottom;
+                            left: parent.left;
+                        }
+                        radius: 3;
+                        width: 1;
+                        color: "#141414";
+                    }
+
+                    Rectangle {
+                        // rightBorder;
+                        anchors {
+                            top: parent.top;
+                            bottom: parent.bottom;
+                            right: parent.right;
+                        }
+                        radius: 3;
+                        width: 1;
+                        color: "#141414";
+                    }
+
+                    Rectangle {
+                        // bottomBorder;
+                        radius: 3;
+
+                        anchors {
+                            bottom: parent.bottom;
+                            left: parent.left;
+                            right: parent.right;
+                        }
+                        height: 1;
+                        color: "#3b3b3b";
+                    }
+                }
+            }
         }
     }
 
     Row {
+        id: leftButtonRow;
         anchors {
             left: parent.left;
             leftMargin: 20;
             verticalCenter: parent.verticalCenter;
         }
-        spacing: 10;
+        spacing: 15;
 
-        Button {
+        PhoenixNormalButton {
             id: settingsBtn;
-            visible: !gameView.visible;
-            height: 27;
-            width: 27;
+            visible: true;
+            height: 30;
+            width: 30;
             anchors.verticalCenter: parent.verticalCenter;
             property string backgroundColor: "#000000FF";
             onHoveredChanged: {
@@ -121,160 +376,130 @@ Rectangle {
                 else
                     opacity = 1.0;
             }
-            style: ButtonStyle {
-                background: Rectangle {
-                    color: settingsBtn.backgroundColor;
-                }
-
-                label: Image{
-                    source: "../assets/cog-6x.png";
-                    sourceSize.height: settingsBtn.height;
-                    sourceSize.width: settingsBtn.width;
-                }
-
+            Image {
+                anchors.centerIn: parent;
+                source: !root.gameShowing ? "../assets/cog-6x.png" : "../assets/GameView/home.png";
+                sourceSize.height: settingsBtn.height * 0.6;
+                sourceSize.width: settingsBtn.width * 0.6;
             }
 
             onClicked:  {
-                if (settingsDropDown.visible)
-                    settingsDropDown.visible = false;
+                if (root.itemInView === "game") {
+                    windowStack.currentItem.run = false;
+                    volumeDropDown.visible = false;
+                    windowStack.push({item: homeScreen, replace: true})
+                    headerBar.userText = "Phoenix";
+                }
                 else {
-                    settingsDropDown.visible = true;
-                }
-            }
-        }
-
-        FileDialog {
-            id: folderDialog;
-            selectFolder: true;
-            title: "Add Folder to Library";
-            visible: false;
-            onAccepted: {
-                var url = fileUrl.toString().replace("file:///", "");
-                phoenixLibrary.folderPath = url;
-                phoenixLibrary.startImport(true);
-            }
-        }
-
-        Button {
-            id: viewBtn;
-            height: 27;
-            width: 27;
-            anchors.verticalCenter: parent.verticalCenter;
-
-            property string backgroundColor: "#000000FF";
-            property string imageSource: headerBar.viewIcon;
-            onHoveredChanged: {
-                if (hovered) {
-                    opacity = 0.7;
-                }
-                else
-                    opacity = 1.0;
-            }
-            style: ButtonStyle {
-                background: Rectangle {
-                    color: viewBtn.backgroundColor;
-                }
-
-                label: Image{
-                    source: viewBtn.imageSource;
-                    //opacity: 0.85;
-                    sourceSize.height: viewBtn.height;
-                    sourceSize.width: viewBtn.width;
-                }
-
-            }
-            onPressedChanged: {
-                if (pressed) {
-                    if (headerBar.viewIcon === "../assets/GameView/home.png") {
-                        gameView.run = false;
-                        windowStack.push({item: homeScreen, replace: true})
-                    }
-                    else if (windowStack.gameStackItemName === "grid") {
-                        imageSource = "../assets/list-8x.png";
-                        windowStack.currentItem.stackId.push({item: gameTable, replace: true, immediate: true});
-                    }
+                    if (settingsDropDown.visible)
+                        settingsDropDown.visible = false;
                     else {
-                        imageSource = "../assets/grid-three-up-8x.png";
+                        settingsDropDown.visible = true;
+                    }
+                }
+            }
+        }
+
+        Row {
+            visible: !root.gameShowing;
+            anchors.verticalCenter: parent.verticalCenter;
+            spacing: -1;
+
+            ExclusiveGroup {
+                id: viewGroup;
+            }
+
+            PhoenixNormalButton {
+                id: tableButton;
+                anchors.verticalCenter: parent.verticalCenter;
+                height: 30;
+                width: 30;
+                checkable: true;
+                exclusiveGroup: viewGroup;
+
+                Image {
+                    anchors.centerIn: parent;
+                    source: "../assets/list-8x.png";
+                    sourceSize.height: settingsBtn.height * 0.6;
+                    sourceSize.width: settingsBtn.width * 0.6;
+                    opacity: parent.checked ? 0.5 : 1.0;
+                }
+                onPressedChanged: {
+                    if (pressed)
+                        windowStack.currentItem.stackId.push({item: gameTable, replace: true, immediate: true})
+                }
+            }
+
+            PhoenixNormalButton {
+                id: viewBtn;
+                height: 30;
+                width: 30;
+                anchors.verticalCenter: parent.verticalCenter;
+                checkable: true;
+                checked: true;
+                exclusiveGroup: viewGroup;
+
+                property string backgroundColor: "#000000FF";
+
+                Image {
+                    anchors.centerIn: parent;
+                    source: "../assets/grid-three-up-8x.png";
+                    sourceSize.height: settingsBtn.height * 0.6;
+                    sourceSize.width: settingsBtn.width * 0.6;
+                    opacity: parent.checked ? 0.5 : 1.0;
+                }
+
+                onPressedChanged: {
+                    if (pressed)
                         windowStack.currentItem.stackId.push({item: gameGrid, replace: true, immediate: true});
-                    }
                 }
-
-                else
-                    backgroundColor = "#000000FF";
             }
         }
 
-        Button {
+        PhoenixNormalButton {
             id: playBtn;
-            visible: gameView.visible;
+            visible: root.gameShowing;
             anchors.verticalCenter: parent.verticalCenter;
+            height: 30;
+            width: 30;
 
-            style: ButtonStyle {
-                background: Image {
-                    source: headerBar.playIcon;
-                    sourceSize.width: 20;
-                    sourceSize.height: 20;
-                }
+            Image {
+                anchors.centerIn: parent;
+                source: headerBar.playIcon;
+                sourceSize.height: settingsBtn.height * 0.6;
+                sourceSize.width: settingsBtn.width * 0.6;
+                opacity: parent.checked ? 0.5 : 1.0;
             }
-            onClicked:  {
-                if (gameView.run)
-                    gameView.run = false;
-                else
-                    gameView.run = true;
-            }
-        }
 
-        Button {
-            id: folderBtn;
-            property string backgroundColor: "#000000FF";
-            visible: !gameView.visible;
-            height: 31;
-            width: 31;
-            onHoveredChanged: {
-                if (hovered) {
-                    opacity = 0.7;
-                }
-                else
-                    opacity = 1.0;
-            }
-            style: ButtonStyle {
-                background: Rectangle {
-                    color: folderBtn.backgroundColor;
-                }
-
-                label: Image{
-                    source: headerBar.folderIcon;
-                    sourceSize {
-                        width: 22;
-                        height: 22;
-                    }
-                }
-
-            }
-            onPressedChanged: {
+            onPressedChanged:  {
                 if (pressed) {
-                    folderDialog.visible = true;
+                    if (windowStack.currentItem.run)
+                        windowStack.currentItem.run = false;
+                    else
+                        windowStack.currentItem.run = true;
                 }
             }
         }
 
-        Button {
+        PhoenixNormalButton {
             id: volumeBtn;
-            visible: gameView.visible;
+            visible: root.gameShowing;
             anchors.verticalCenter: parent.verticalCenter;
-            height: 20;
-            width: 20;
+            height: 30;
+            width: 30;
             checkable: true;
             checked: false;
 
             property string backgroundImage: "../assets/volume-high-8x.png";
-            onHoveredChanged: {
-                if (hovered) {
-                    opacity = 0.7;
-                }
-                else
-                    opacity = 1.0;
+
+            Image {
+                anchors.centerIn: parent;
+                source: parent.backgroundImage;
+                sourceSize.height: settingsBtn.height * 0.6;
+                sourceSize.width: settingsBtn.width * 0.6;
+                opacity: parent.checked ? 0.5 : 1.0;
             }
+
             onCheckedChanged: {
                 if (checked) {
                     volumeDropDown.visible = true;
@@ -283,27 +508,19 @@ Rectangle {
                     volumeDropDown.visible = false;
                 }
             }
-
-            style: ButtonStyle {
-                background: Image {
-                    source: volumeBtn.backgroundImage;
-                    sourceSize.width: volumeBtn.width;
-                    sourceSize.height: volumeBtn.height;
-                }
-            }
         }
 
         Slider {
             id: zoomSlider;
-            visible: headerBar.sliderVisible;
-            width: 150;
+            visible: !root.gameShowing && !root.clear;
+            width: 120;
             height: 25;
             anchors {
                 verticalCenter: parent.verticalCenter;
             }
-            stepSize: 1;
-            minimumValue: 1;
-            maximumValue: 10;
+            stepSize: 0.5;
+            minimumValue: 1.5;
+            maximumValue: 5.0;
             value: 5;
 
             Settings {
@@ -317,6 +534,7 @@ Rectangle {
                 else
                     headerBar.sliderPressed = false;
             }
+
 
             onValueChanged: {
                 var prev = headerBar.sliderValue;
@@ -333,31 +551,91 @@ Rectangle {
 
                     Rectangle {
                         id: zoomHandle;
-                        color: "#f1f1f1";
+                        gradient: Gradient {
+                            GradientStop{ position: 0.0; color: "#f1f1f1";}
+                            GradientStop{ position: 0.5; color: "#f1f2f1";}
+                            GradientStop{ position: 0.7; color: "#e2e2e2";}
+                            GradientStop{ position: 1.0; color: "#cbcacb";}
+
+                        }
+
                         radius: 10;
                         anchors.fill: parent;
                         smooth: true;
                     }
-                }
-
-                groove: Rectangle {
-                    height: 5;
-                    width: zoomSlider.width;
-                    radius: 2;
-                    opacity: 0.8;
-                    color: "#1a1a1a";
 
                     Rectangle {
                         color: "#f1f1f1";
+                        height: 6;
                         anchors {
-                            left: parent.left;
-                            top: parent.top;
-                            bottom: parent.bottom;
+                            right: zoomHandle.right;
+                            rightMargin: 5;
+                            verticalCenter: parent.verticalCenter;
                         }
-                        width: 14 * headerBar.sliderValue;
+                        width: 10 * headerBar.sliderValue;
+
                         // 14 seems to be the magic number.
                         // It's a quick and dirty way to make
                         // the effect work.
+                    }
+                }
+
+                groove: Rectangle {
+                    height: 6;
+                    width: zoomSlider.width;
+                    radius: 6;
+                    opacity: 0.8;
+                    color: "#1a1a1a";
+
+
+
+                    Rectangle {
+                        // topBorder;
+                        anchors {
+                            top: parent.top;
+                            left: parent.left;
+                            right: parent.right;
+                        }
+                        radius: 3;
+                        height: 1;
+                        color: "#1f1f1f";
+                    }
+
+                    Rectangle {
+                        // leftBorder;
+                        anchors {
+                            top: parent.top;
+                            bottom: parent.bottom;
+                            left: parent.left;
+                        }
+                        radius: 3;
+                        width: 1;
+                        color: "#141414";
+                    }
+
+                    Rectangle {
+                        // rightBorder;
+                        anchors {
+                            top: parent.top;
+                            bottom: parent.bottom;
+                            right: parent.right;
+                        }
+                        radius: 3;
+                        width: 1;
+                        color: "#141414";
+                    }
+
+                    Rectangle {
+                        // bottomBorder;
+                        radius: 3;
+
+                        anchors {
+                            bottom: parent.bottom;
+                            left: parent.left;
+                            right: parent.right;
+                        }
+                        height: 1;
+                        color: "#3b3b3b";
                     }
                 }
             }
@@ -368,20 +646,19 @@ Rectangle {
         id: userArea;
         anchors.centerIn: parent;
         spacing: 10;
-        Image {
+        /*Image {
             id: userImage;
-            height: 22;
-            width: 22;
-            source: "../assets/Account-32.png"
-            sourceSize {
-                height: userImage.height;
-                width: userImage.width;
-            }
+            height: 20;
+            width: 65;
+            source: "../assets/phoenix-logo.png";
+            fillMode: Image.PreserveAspectFit;
 
-        }
+
+        }*/
 
         Text {
-            text: "Phoenix";
+            id: userAreaText;
+            text: headerBar.userText;
             anchors.verticalCenter: parent.verticalCenter;
             renderType: Text.QtRendering;
             font {
@@ -401,116 +678,110 @@ Rectangle {
             verticalCenter: parent.verticalCenter;
         }
 
-        Button {
+        PhoenixNormalButton {
             id: saveBtn;
-            visible: gameView.visible;
+            visible: root.gameShowing;
             anchors.verticalCenter: parent.verticalCenter;
-            text: "Save";
-            height: 15;
-            width: 15;
-            onClicked: gameView.saveGameState = true;
-        }
+            height: 30;
+            width: 30;
+            onClicked: windowStack.currentItem.saveGameState = true;
 
-        Button {
-            id: loadBtn;
-            visible: gameView.visible;
-            anchors.verticalCenter: parent.verticalCenter;
-            text: "Load";
-            height: 20;
-            width: 20;
-            onClicked: gameView.loadSaveState = true;
-        }
-
-        Button {
-            id: favoriteBtn;
-            visible: gameView.visible;
-            height: 28;
-            width: 28;
-            anchors.verticalCenter: parent.verticalCenter;
-            style: ButtonStyle {
-                background: Image {
-                    source: "/assets/GameView/star.png";
-                    sourceSize.width: favoriteBtn.height;
-                    sourceSize.height: favoriteBtn.width;
-                }
+            Image {
+                anchors.centerIn: parent;
+                source: "../assets/GameView/save-state.png";
+                sourceSize.height: settingsBtn.height * 0.6;
+                sourceSize.width: settingsBtn.width * 0.6;
+                opacity: parent.pressed ? 0.5 : 1.0;
             }
         }
 
-        Button {
+        PhoenixNormalButton {
+            id: loadBtn;
+            visible: root.gameShowing;
+            anchors.verticalCenter: parent.verticalCenter;
+            height: 30;
+            width: 30;
+            onClicked: windowStack.currentItem.loadSaveState = true;
+
+            Image {
+                anchors.centerIn: parent;
+                source: "../assets/GameView/load-state.png";
+                sourceSize.height: settingsBtn.height * 0.6;
+                sourceSize.width: settingsBtn.width * 0.6;
+                opacity: parent.pressed ? 0.5 : 1.0;
+            }
+        }
+
+        PhoenixNormalButton {
+            id: favoriteBtn;
+            visible: root.gameShowing;
+            height: 30;
+            width: 30;
+            anchors.verticalCenter: parent.verticalCenter;
+            Image {
+                anchors.centerIn: parent;
+                source: "/assets/GameView/favorite-empty.png";
+                sourceSize.height: settingsBtn.height * 0.6;
+                sourceSize.width: settingsBtn.width * 0.6;
+                opacity: parent.pressed ? 0.5 : 1.0;
+            }
+        }
+
+        PhoenixNormalButton {
             id: resizeBtn;
-            visible: gameView.visible;
-            height: 26;
-            width: 26;
+            visible: root.gameShowing;
+            height: 30;
+            width: 30;
             anchors.verticalCenter: parent.verticalCenter;
             onClicked: {
-                if (root.visibility === 5)
-                    root.visibility = "Windowed";
-                else
-                    root.visibility = "FullScreen";
+                root.swapScreenSize();
             }
-            style: ButtonStyle {
-                background: Image {
-                    source: "/assets/GameView/arrow-expand.png";
-                    sourceSize.width: resizeBtn.width;
-                    sourceSize.height: resizeBtn.height;
-                }
+
+            Image {
+                anchors.centerIn: parent;
+                source: "/assets/GameView/fullscreen.png";
+                sourceSize.height: settingsBtn.height * 0.6;
+                sourceSize.width: settingsBtn.width * 0.6;
+                opacity: parent.pressed ? 0.5 : 1.0;
             }
         }
     }
 
-    TextField {
+    PhoenixTextField {
         id: searchBar;
         width: 175;
         placeholderText: "Search";
-        visible: headerBar.searchBarVisible;
+        visible: !root.gameShowing;
         font {
-            bold: true;
-            pixelSize: 14;
+            pixelSize: 12;
         }
-
-
         textColor: "#f1f1f1";
         height: 25;
-
         anchors {
             right: parent.right;
             rightMargin: 20;
             verticalCenter: parent.verticalCenter;
         }
-
         Timer {
             id: searchTimer;
             interval: 300;
             running: false;
             repeat: false;
-            onTriggered: gamelibrary.setFilter(searchBar.text, "title");
+            onTriggered: phoenixLibrary.model().setFilter("title LIKE ?", ['%'+searchBar.text+'%']);
         }
 
         onTextChanged: {
             searchTimer.restart();
         }
 
-        style: TextFieldStyle {
-            placeholderTextColor: "#f1f1f1";
-
-            background: Rectangle {
-                radius: 2;
-                opacity: 0.8;
-                color: "#1a1a1a";
-
-            }
-
-        }
-
         Image {
             id: image;
-            focus: true;
             anchors {
                 verticalCenter: parent.verticalCenter;
                 right: parent.right;
                 margins: 5;
             }
-            visible: (searchBar.displayText == "") ? false : true;
+            visible: (searchBar.displayText === "") ? false : true;
             source: "../assets/delete-4x.png"
             sourceSize.height: 15;
             sourceSize.width: 15;
@@ -518,10 +789,6 @@ Rectangle {
                 anchors.fill: parent;
                 onClicked: searchBar.text = "";
             }
-
         }
-
-
     }
-
 }
