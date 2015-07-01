@@ -1,7 +1,5 @@
 TEMPLATE += app
 
-SOURCES += src/main.cpp
-
 QT += qml quick widgets concurrent sql multimedia
 
 CONFIG += c++11
@@ -45,12 +43,20 @@ else {
     QMAKE_LFLAGS += -L/usr/local/lib -L/opt/local/lib
 }
 
+INCLUDEPATH += include
+
+SOURCES += src/main.cpp \
+           src/librarymodel.cpp \
+           src/libraryinternaldatabase.cpp
+
+HEADERS += include/librarymodel.h \
+           include/libraryinternaldatabase.h
+
+
 # Will build the final executable in the main project directory.
 TARGET = ../phoenix
 
 # Check if the config file exists
-! include( ../common.pri ) {
-    error( "Couldn't find the common.pri file!" )
-}
+include( ../common.pri )
 
 RESOURCES += qml/qml.qrc

@@ -1,8 +1,11 @@
 #include <QApplication>
 #include <QQmlApplicationEngine>
+#include <QQmlContext>
 
 #include "videoitem.h"
 #include "inputmanager.h"
+#include "librarymodel.h"
+
 
 void phoenixDebugMessageHandler( QtMsgType type, const QMessageLogContext &context, const QString &msg ) {
 
@@ -40,9 +43,8 @@ void phoenixDebugMessageHandler( QtMsgType type, const QMessageLogContext &conte
 
 }
 
-int main(int argc, char *argv[])
-{
-    QApplication app(argc, argv);
+int main( int argc, char *argv[] ) {
+    QApplication app( argc, argv );
 
     QApplication::setApplicationDisplayName( "Phoenix" );
     QApplication::setApplicationName( "Phoenix" );
@@ -51,10 +53,15 @@ int main(int argc, char *argv[])
 
     QQmlApplicationEngine engine;
 
+    Library::LibraryInternalDatabase db;
+    Library::LibraryModel *model = new Library::LibraryModel( db );
+
+    engine.rootContext()->setContextProperty( "libraryModel", model );
+
     VideoItem::registerTypes();
     InputManager::registerTypes();
 
-    engine.load(QUrl(QStringLiteral("qrc:/main.qml")));
+    engine.load( QUrl( QStringLiteral( "qrc:/main.qml" ) ) );
 
     return app.exec();
 }
