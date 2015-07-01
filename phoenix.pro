@@ -1,10 +1,10 @@
 TEMPLATE = subdirs
 
 SUBDIRS += phoenix-backend
-SUBDIRS += build
+SUBDIRS += frontend
 
 phoenix-backend.file = phoenix-backend/phoenix-backend.pro
-build.file = build/build.pro
+frontend.file = frontend/frontend.pro
 
 CONFIG += ordered
 
