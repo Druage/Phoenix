@@ -1,3 +1,6 @@
 [submodule "Phoenix.wiki"]
 	path = Phoenix.wiki
 	url = git://github.com/team-phoenix/Phoenix.wiki
+[submodule "phoenix-backend"]
+	path = phoenix-backend
+	url = https://github.com/team-phoenix/phoenix-backend
