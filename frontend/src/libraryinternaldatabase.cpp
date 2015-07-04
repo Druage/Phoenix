@@ -54,7 +54,9 @@ void LibraryInternalDatabase::open() {
     if( !db.tables().contains( tableVersion ) ) {
         // must initialize db
         createSchema();
-        loadFixtures();
+
+        // Only uncomment this when you're testing.
+        //loadFixtures();
     }
 }
 
