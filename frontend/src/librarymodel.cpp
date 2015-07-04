@@ -162,7 +162,6 @@ void LibraryModel::handleFilesFound( const GameImportData importData ) {
     static const QString statement = "INSERT INTO " + LibraryInternalDatabase::tableName
                                      + " (title, system, time_played) " + "VALUES (?,?,?)";
 
-
     if( cancelScan() ) {
         return;
     }
@@ -187,7 +186,10 @@ void LibraryModel::handleFilesFound( const GameImportData importData ) {
         qDebug() << query.lastError().text();
     }
 
-    setProgress( importData.importProgress );
+    // Limit how many times the progress is updated, to reduce strain on the render thread.
+    auto importProgress = static_cast<int>( importData.importProgress );
+    if ( importProgress  != static_cast<int>( progress() ) )
+        setProgress( importProgress );
 
     if( static_cast<int>( progress() ) == 100 ) {
 

@@ -91,7 +91,6 @@ Item {
                     id: fileDialog;
                     selectFolder: true;
                     onAccepted: {
-                        console.log(fileUrl)
                         libraryModel.append( fileUrl );
                     }
                 }

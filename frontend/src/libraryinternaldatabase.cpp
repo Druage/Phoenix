@@ -50,7 +50,6 @@ void LibraryInternalDatabase::open() {
                 qPrintable( db.lastError().driverText() ) );
     }
 
-
     if( !db.tables().contains( tableVersion ) ) {
         // must initialize db
         createSchema();
