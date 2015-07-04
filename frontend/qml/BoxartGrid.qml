@@ -89,8 +89,12 @@ Rectangle {
                         height: parent.height;
 
 
+                        Rectangle {
+                            anchors.fill: parent;
+                            color: "white";
+                        }
+
                         verticalAlignment: Image.AlignBottom;
-                        source: index == 0 ? "file:///Users/lee/Desktop/mario2.png" : "file:///Users/lee/Desktop/yoshi.png";
 
                         sourceSize {
                             height: 300;
