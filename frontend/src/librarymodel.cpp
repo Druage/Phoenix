@@ -157,6 +157,11 @@ void LibraryModel::cancel() {
 
 }
 
+void LibraryModel::setMetadata()
+{
+    database().transaction();
+}
+
 void LibraryModel::handleFilesFound( const GameImportData importData ) {
 
     static const QString statement = "INSERT INTO " + LibraryInternalDatabase::tableName

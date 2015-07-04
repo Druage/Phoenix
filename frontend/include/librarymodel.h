@@ -10,6 +10,7 @@
 #include <QThread>
 
 #include "libraryinternaldatabase.h"
+#include "libretro_cores_info_map.h"
 
 namespace Library {
 
@@ -106,8 +107,10 @@ namespace Library {
             // Cancels the import progress if the mScanFilesThread is running.
             void cancel();
 
+            void setMetadata();
+
         private slots:
-            //void getMetadata();
+
 
             // handleFilesFound runs on the main QML thread, and is
             // where the SQL query statement is created and executed.

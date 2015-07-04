@@ -50,7 +50,8 @@ SOURCES += src/main.cpp \
            src/libraryinternaldatabase.cpp
 
 HEADERS += include/librarymodel.h \
-           include/libraryinternaldatabase.h
+           include/libraryinternaldatabase.h \
+    include/libretro_cores_info_map.h
 
 
 # Will build the final executable in the main project directory.
