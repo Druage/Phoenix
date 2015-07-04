@@ -4,5 +4,6 @@
         <file>BoxartGrid.qml</file>
         <file>ContentArea.qml</file>
         <file>SelectionArea.qml</file>
+        <file>HeaderBar.qml</file>
     </qresource>
 </RCC>

@@ -31,7 +31,7 @@ win32 {
         depends.files += C:/SDL2/bin/SDL2.dll
     }
     INSTALLS += depends
-    RC_FILE = phoenix.rc
+    RC_FILE = ../phoenix.rc
 }
 
 else {
@@ -59,4 +59,5 @@ TARGET = ../phoenix
 # Check if the config file exists
 include( ../common.pri )
 
-RESOURCES += qml/qml.qrc
+RESOURCES += qml/qml.qrc \
+             qml/Theme/theme.qrc

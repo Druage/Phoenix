@@ -1,4 +1,6 @@
 #include "librarymodel.h"
+#include "logging.h"
+
 #include <QSqlRecord>
 #include <QSqlField>
 #include <QDebug>
@@ -6,12 +8,32 @@
 #include <QSqlQuery>
 #include <QSqlResult>
 #include <QVariant>
+#include <QFile>
+#include <QDir>
+#include <QtConcurrent>
+#include <QFutureWatcher>
+#include <QMutexLocker>
+#include <QSharedPointer>
+#include <QCryptographicHash>
 
 using namespace Library;
 
 LibraryModel::LibraryModel( LibraryInternalDatabase &db, QObject *parent )
     : QSqlTableModel( parent, db.database() ),
-      qmlCount( 0 ) {
+      fileFilter {
+          "*.sfc", "*.smc", // Super Nintendo
+          //"*.z64", "*.n64", // Nintendo 64;
+          "*.nes", // Nintendo Entertainment System
+          "*.gba",  // Game Boy Advance
+          "*.gb", "*.gbc", "Game Boy / Color"
+      },
+      mFindFilesWatcher( nullptr ),
+      qmlScanRunning( false ),
+      mCancelScan( false ),
+      qmlCount( 0 ),
+      qmlRecursiveScan( true ),
+      qmlProgress( 0.0 )
+{
 
     mRoleNames = QSqlTableModel::roleNames();
     mRoleNames.insert( TitleRole, "title" );
@@ -25,7 +47,19 @@ LibraryModel::LibraryModel( LibraryInternalDatabase &db, QObject *parent )
     setTable( LibraryInternalDatabase::tableName );
     select();
 
+    connect( this, &LibraryModel::fileFound, this, &LibraryModel::handleFilesFound );
 
+}
+
+LibraryModel::~LibraryModel()
+{
+    qDebug() << "scan running: " << scanRunning();
+    if ( scanRunning() ) {
+        setCancelScan( true );
+        mFindFilesWatcher->waitForFinished();
+        if ( mFindFilesWatcher )
+            delete mFindFilesWatcher;
+    }
 }
 QVariant LibraryModel::data( const QModelIndex &index, int role ) const {
     QVariant value = QSqlTableModel::data( index, role );
@@ -79,6 +113,14 @@ bool LibraryModel::select() {
     return true;
 }
 
+bool LibraryModel::cancelScan()
+{
+    scanMutex.lock();
+    auto cancel = mCancelScan;
+    scanMutex.unlock();
+    return cancel;
+}
+
 void LibraryModel::updateCount() {
     database().transaction();
 
@@ -94,27 +136,184 @@ void LibraryModel::updateCount() {
 }
 
 void LibraryModel::setFilter( QString filter, QVariantList params, bool preserveCurrentFilter ) {
-    if( this->filter() == filter ) {
-        return;
-    }
+    Q_UNUSED( preserveCurrentFilter );
 
-
+/*
     if( preserveCurrentFilter && !this->filter().isEmpty() ) {
         filter = this->filter() + " AND " + filter;
         this->params.append( params );
-    }
+    }*/
 
-    else {
+    //else {
         this->params = params;
-    }
-
-    qDebug() << filter;
+    //}
 
     QSqlTableModel::setFilter( filter );
 }
 
+void LibraryModel::cancel()
+{
+    if ( !scanRunning() )
+        return;
+
+    setCancelScan( true );
+
+}
+
+void LibraryModel::handleScanFinished()
+{
+    delete mFindFilesWatcher;
+    mFindFilesWatcher = nullptr;
+    setScanRunning( false );
+    setCancelScan( false );
+}
+
+void LibraryModel::handleFilesFound( const GameImportData importData )
+{
+
+    static const QString statement = "INSERT INTO " + LibraryInternalDatabase::tableName
+            + " (title, system, time_played) " + "VALUES (?,?,?)";
+
+
+    if ( cancelScan() ) {
+        return;
+    }
+
+    static int count = 0;
+    if ( count == 0  ) {
+        //beginInsertRows( QModelIndex(), count(), count() );
+
+        database().transaction();
+        count = 1;
+    }
+
+    QSqlQuery query( database() );
+
+    query.prepare( statement );
+    query.addBindValue( importData.title );
+    query.addBindValue( importData.system );
+    query.addBindValue( importData.timePlayed );
+
+    if( !query.exec() ) {
+        qDebug() << query.lastError().text();
+    }
+
+    setProgress( importData.importProgress );
+
+    qDebug() << progress() << importData.title;
+
+
+    if ( static_cast<int>( progress() ) == 100 ) {
+
+        if( submitAll() ) {
+            database().commit();
+        }
+
+        else {
+            database().rollback();
+        }
+
+        updateCount();
+        //endInsertRows();
+
+    }
+}
+
+QByteArray LibraryModel::hash( const QFileInfo &fileInfo )
+{
+    QByteArray hash;
+    QFile file( fileInfo.canonicalFilePath() );
+    if ( file.open( QIODevice::ReadOnly ) ) {
+        hash = QCryptographicHash::hash( file.readAll(), QCryptographicHash::Sha1 ).toHex();
+        file.close();
+    }
+    return std::move( hash );
+}
+
+bool LibraryModel::findFiles( const QUrl &url )
+{
+
+
+    auto localUrl = url.toLocalFile();
+
+    QDir urlDirectory( localUrl );
+
+    if ( !urlDirectory.exists() ) {
+        qCWarning( phxLibrary ) << localUrl << " does not exist!";
+        return false;
+    }
+
+    auto fileInfoList = urlDirectory.entryInfoList( fileFilter, QDir::Files, QDir::NoSort );
+
+    if ( fileInfoList.size() == 0 )
+        qCWarning( phxLibrary ) << "No files were found";
+
+    int i = 0;
+    for ( auto &fileInfo : fileInfoList ) {
+
+        if ( cancelScan() ) {
+            qCDebug( phxLibrary ) << "Canceled import";
+            return false;
+        }
+
+        auto extension = fileInfo.suffix();
+        auto sha1 = hash( fileInfo );
+
+        auto system = QString( "Super Nintendo" );
+
+        GameImportData importData;
+        importData.timePlayed = "00:00";
+        importData.title = fileInfo.baseName();
+        importData.filePath = fileInfo.canonicalFilePath();
+        importData.importProgress =  ( ( i + 1 )
+                                       / static_cast<qreal>( fileInfoList.size() ) ) * 100.0;
+        importData.system = system;
+
+        emit fileFound( std::move( importData ) );
+        //qDebug() << sha1;
+        Q_UNUSED( extension );
+
+        ++i;
+
+    }
+
+    return true;
+
+}
+
+void LibraryModel::setScanRunning( const bool running )
+{
+    qmlScanRunning = running;
+}
+
+void LibraryModel::setProgress( const qreal progress )
+{
+    if ( progress == qmlProgress )
+        return;
+    qmlProgress = progress;
+    emit progressChanged();
+}
+
+void LibraryModel::setCancelScan(const bool scan)
+{
+    scanMutex.lock();
+    mCancelScan = scan;
+    scanMutex.unlock();
+    emit cancelScanChanged();
+}
+
 int LibraryModel::count() const {
     return qmlCount;
+}
+
+qreal LibraryModel::progress() const
+{
+    return qmlProgress;
+}
+
+bool LibraryModel::scanRunning() const
+{
+    return qmlScanRunning;
 }
 
 QVariantMap LibraryModel::get( int inx ) {
@@ -127,9 +326,25 @@ QVariantMap LibraryModel::get( int inx ) {
     return map;
 }
 
+bool LibraryModel::recursiveScan() const
+{
+    return qmlRecursiveScan;
+}
+
+void LibraryModel::setRecursiveScan(const bool scan)
+{
+    qmlRecursiveScan = scan;
+    emit recursiveScanChanged();
+}
+
 
 bool LibraryModel::remove( int row, int count ) {
     Q_UNUSED( count )
+
+    if ( scanRunning() ) {
+        qCWarning( phxLibrary) << "Cannot remove entries when scan is running.";
+        return false;
+    }
     //beginRemoveRows( QModelIndex(), row, row + count );
 
     database().transaction();
@@ -162,43 +377,37 @@ bool LibraryModel::remove( int row, int count ) {
 
 }
 
-bool LibraryModel::append( QVariantMap dict ) {
-    //beginInsertRows( QModelIndex(), count(), count() );
-
-    database().transaction();
-    QSqlQuery query( database() );
+void LibraryModel::append( const QUrl url ) {
 
 
-    QString statement = "INSERT INTO " + LibraryInternalDatabase::tableName + " (romFileName) VALUES (?)";
-
-    query.prepare( statement );
-
-    qDebug() << "dict value: " << dict.value( "romFileName" ).toString();
-    query.addBindValue( dict.value( "romFileName" ) );
-
-
-    if( !query.exec() ) {
-        qDebug() << query.lastError().text();
-        return false;
+    if ( scanRunning() ) {
+        qDebug() << "Scan in already running. returning...";
+        return;
     }
 
-
-    if( submitAll() ) {
-        //database().commit();
+    if ( cancelScan() ) {
+        handleScanFinished();
     }
 
-    else {
-        database().rollback();
-    }
+    setScanRunning( true );
+    QFuture<bool> future = QtConcurrent::run( this, &LibraryModel::findFiles, url );
 
+    mFindFilesWatcher = new QFutureWatcher<bool>;
 
-    //endInsertRows();
+    connect( mFindFilesWatcher, &QFutureWatcher<QFileInfoList>::finished, this, &LibraryModel::handleScanFinished );
+    connect( mFindFilesWatcher, &QFutureWatcher<QFileInfoList>::canceled, this, [ ] {
+        qDebug() << "Should be quitting";
+    } );
 
-    updateCount();
-    return true;
+    mFindFilesWatcher->setFuture( future );
+
 }
 
 void LibraryModel::clear() {
+    if ( scanRunning() ) {
+        qCWarning( phxLibrary) << "Cannot remove entries when scan is running.";
+        return;
+    }
 
     database().transaction();
 
@@ -209,14 +418,14 @@ void LibraryModel::clear() {
         return;
     }
 
+    qDebug() << "clear";
     if( submitAll() ) {
-        //database().commit();
+        database().commit();
     }
 
     else {
         database().rollback();
     }
-
 
     updateCount();
 }

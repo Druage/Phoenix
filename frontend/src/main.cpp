@@ -61,6 +61,9 @@ int main( int argc, char *argv[] ) {
     VideoItem::registerTypes();
     InputManager::registerTypes();
 
+    qRegisterMetaType<Library::LibraryModel::GameImportData>("GameImportData");
+
+
     engine.load( QUrl( QStringLiteral( "qrc:/main.qml" ) ) );
 
     return app.exec();
