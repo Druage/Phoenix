@@ -23,16 +23,23 @@ namespace Library {
 
             QSqlDatabase &database();
 
+            // opens the internal QSqlDatabase.
             void open();
 
+            // Returns the schema verison.
             int version() const;
 
+            // Returns the absolute path of the
+            // underlying SQL database.
             QString filePath() const;
 
         private:
             QSqlDatabase db;
 
+            // Creates the table.
             bool createSchema();
+
+            // Populates the database with dummy entries for testing purposes.
             bool loadFixtures();
 
             QString mFilePath;

@@ -58,11 +58,13 @@ int main( int argc, char *argv[] ) {
 
     engine.rootContext()->setContextProperty( "libraryModel", model );
 
+    // Register my types!
+
     VideoItem::registerTypes();
     InputManager::registerTypes();
 
-    qRegisterMetaType<Library::LibraryModel::GameImportData>("GameImportData");
-
+    qRegisterMetaType<Library::LibraryModel::GameImportData>( "GameImportData" );
+    qRegisterMetaType<Library::LibraryModel::GameMetaData>( "GameMetaData" );
 
     engine.load( QUrl( QStringLiteral( "qrc:/main.qml" ) ) );
 

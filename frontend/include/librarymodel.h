@@ -6,8 +6,8 @@
 #include <QHash>
 #include <QUrl>
 #include <QMutex>
-#include <QFutureWatcher>
 #include <QFileInfo>
+#include <QThread>
 
 #include "libraryinternaldatabase.h"
 
@@ -24,6 +24,10 @@ namespace Library {
 
         public:
 
+            // Simple data groupings to simplify signals and slots
+
+            // GameMetaData is used to set in metadata for any game during;
+            // this usually used after the append process.
             struct GameMetaData {
                 QByteArray hash;
                 QString artworkUrl;
@@ -31,6 +35,7 @@ namespace Library {
                 QString region;
             };
 
+            // GameImportData is used to import game files into the SQL database.
             struct GameImportData {
                 qreal importProgress;
                 QString system;
@@ -45,6 +50,7 @@ namespace Library {
 
             ~LibraryModel();
 
+            // Model Roles
             enum GameRoles {
                 TitleRole = Qt::UserRole + 1,
                 SystemRole,
@@ -54,55 +60,91 @@ namespace Library {
                 SystemPathRole,
             };
 
-            QVariant data( const QModelIndex &index, int role ) const;
-
-            QHash<int, QByteArray> roleNames() const;
-
+            // Getters
             bool select();
             bool cancelScan();
 
+            //  QML Getters
             int count() const;
             qreal progress() const;
-            bool scanRunning() const;
-
-            QVariantMap get( int inx );
-
             bool recursiveScan() const;
 
+            // QML Setters
             void setRecursiveScan( const bool scan );
 
+            // Subclass Setters.
+            QVariantMap get( int inx );
+            QVariant data( const QModelIndex &index, int role ) const;
+
+            // Subclass Getters
+            QHash<int, QByteArray> roleNames() const;
+
+
+
         public slots:
+            // Removes 1 row from the SQL model.
             bool remove( int row, int count = 1 );
+
+            // Starts the import progress. The url is a folder or
+            // file that the user wants to import.
             void append( const QUrl url );
+
+            // clear removes every SQL row  in the database permanently.
             void clear();
+
+            //  updateCount() reads the SQL database and updates the count()
+            // function with how many entries are actually in the databaes.
+            // This is important for creating our own scrollbar.
             void updateCount();
+
+            // Filters the SQL model based on a SQL query.
+            // This is used to filter games in the BoxartGrid
             void setFilter( QString filter
                             , QVariantList params
                             , bool preserveCurrentFilter );
+
+            // Cancels the import progress if the mScanFilesThread is running.
             void cancel();
 
-
         private slots:
-            void handleScanFinished();
             //void getMetadata();
+
+            // handleFilesFound runs on the main QML thread, and is
+            // where the SQL query statement is created and executed.
             void handleFilesFound( const GameImportData importData );
+
+            // This function is connected to the mScanFilesThread.
+            // This iterates through the mImportUrl, if the url is
+            // a folder, and emits the filesFound signal.
+
+            // findFiles is needed to run directly on the mScanFilesThread
+            // so make sure that this signal is connected with a Qt::DirectionConnection;
+            // this is because the LibraryModel is not moved into the mScanFilesThread,
+            // nor should it be.
+            void findFiles();
 
         signals:
             void countChanged();
             void recursiveScanChanged();
             void progressChanged();
             void fileFound( const GameImportData importData );
-            void importThreadSynced();
             void cancelScanChanged();
 
         private:
             // Normal Variables
-            QStringList fileFilter;
+            QStringList mFileFilter;
             QHash<int, QByteArray> mRoleNames;
             QVariantList params;
             QMutex scanMutex;
-            QFutureWatcher<bool> *mFindFilesWatcher;
-            bool qmlScanRunning;
+
+            // This thread is started when a user wants to import
+            // a games folder. Currently, the thread quits whenever the
+            // user cancels and import, or the import finishes.
+            QThread mScanFilesThread;
+
+            // mImportUrl is the url of the folder or file that is
+            // being scanned and imported.
+            QUrl mImportUrl;
             bool mCancelScan;
 
             // QML Variables
@@ -110,10 +152,13 @@ namespace Library {
             bool qmlRecursiveScan;
             qreal qmlProgress;
 
-            bool findFiles( const QUrl &url );
-            void setScanRunning( const bool running );
+            // QML Setters
             void setProgress( const qreal progress );
+
+            // Normal Setters
             void setCancelScan( const bool scan );
+
+            // Helper Functions
             QByteArray hash( const QFileInfo &fileInfo );
 
     };

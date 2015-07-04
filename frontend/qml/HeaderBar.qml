@@ -85,6 +85,8 @@ Item {
                 Layout.fillHeight: true;
                 Layout.fillWidth: true;
 
+
+
                 FileDialog {
                     id: fileDialog;
                     selectFolder: true;
@@ -113,6 +115,14 @@ Item {
 
                         text: qsTr("Cancel Import");
                         onClicked: libraryModel.cancel();
+                    }
+
+                    Label {
+                        anchors {
+                            verticalCenter: parent.verticalCenter;
+                        }
+                        text: libraryModel.progress;
+                        color: "white";
                     }
                 }
             }
