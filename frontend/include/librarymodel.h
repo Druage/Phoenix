@@ -11,6 +11,7 @@
 
 #include "libraryinternaldatabase.h"
 #include "libretro_cores_info_map.h"
+#include "platforms.h"
 
 namespace Library {
 
@@ -162,7 +163,11 @@ namespace Library {
             void setCancelScan( const bool scan );
 
             // Helper Functions
-            QByteArray hash( const QFileInfo &fileInfo );
+            QByteArray getCheckSum( const QString &absoluteFilePath );
+            void checkHeaderOffsets( const QFileInfo &fileInfo, QString &platform );
+            bool getCueFileInfo( QFileInfo &fileInfo );
+
+            QString getPlatformFromHeader( const QByteArray &rawFileData, const QString &suffix );
 
     };
 
