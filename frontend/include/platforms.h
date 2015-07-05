@@ -13,6 +13,7 @@ namespace Library {
         GB = 1,
         GBC = 2,
 
+        GBA = 3,
         NES = 4,
         SNES = 5,
         N64 = 6,
@@ -22,27 +23,38 @@ namespace Library {
 
         WII = 9,
         GAMECUBE = 10,
-        MAX = 11,
+        LYNX = 11,
+        NEOGEO = 12,
+        MAX = 13,
     };
 
-    QString platformtoString( const Platforms &value );
+    QString platformToString( const Platforms &value );
 
+    // If ambiguous files extensions are used, use Platforms::Unknown.
     static const QHash<QString, QString> platformMap {
-        { "sfc" , "Super Nintendo"  }, // BSNES
-        { "smc" , "Super Nintendo"  }, // BSNES
-        { "bml" , "Super Nintendo"  }, // BSNES
+        { "sfc" ,  platformToString( Platforms::SNES ) }, // BSNES
+        { "smc" , platformToString( Platforms::SNES )   }, // BSNES
+        { "bml" , platformToString( Platforms::SNES )   }, // BSNES
 
-        { "nes" , "Nintendo Entertainment System"  },  // Nestopia
-        { "fds" , "Nintendo Entertainment System"  },  // Nestopia
-        { "unif" , "Nintendo Entertainment System"  }, // Fceumm
+        { "nes" , platformToString( Platforms::NES )   },  // Nestopia
+        { "fds" , platformToString( Platforms::NES )   },  // Nestopia
+        { "unif" , platformToString( Platforms::NES )   }, // Fceumm
 
-        { "n64" , "Nintendo 64"  }, // Mupen64plus
-        { "z64" , "Nintendo 64"  }, // Mupen64plus
-        { "v64" , "Nintendo 64"  }, // Mupen64plus
+        // Don't use these until it's actually supported by the frontend.
+        //{ "n64" , platformToString( Platforms::N64 )   }, // Mupen64plus
+        //{ "z64" , platformToString( Platforms::N64 )  }, // Mupen64plus
+        //{ "v64" , platformToString( Platforms::N64 )   }, // Mupen64plus
 
-        { "gba" , "Game Boy Advance"  }, // MGBA
-        { "agb" , "Game Boy Advance"  }, // MGBA
-        { "gbz" , "Game Boy Advance"  }, // MGBA
+        { "gba" , platformToString( Platforms::GBA )   }, // MGBA
+        { "agb" , platformToString( Platforms::GBA )  }, // MGBA
+        { "gbz" , platformToString( Platforms::GBA ) }, // MGBA
+
+        { "ngp" , platformToString( Platforms::NEOGEO ) }, // Mednafen NGP
+        { "ngc" , platformToString( Platforms::NEOGEO ) }, // Mednafen NGP
+
+        { "lnx" , platformToString( Platforms::LYNX ) }, // Handy
+
+        { "cue", platformToString( Platforms::Unknown ) }, // Mednafen PSX, and others...
 
     };
 
