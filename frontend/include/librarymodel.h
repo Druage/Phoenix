@@ -167,8 +167,6 @@ namespace Library {
             void checkHeaderOffsets( const QFileInfo &fileInfo, QString &platform );
             bool getCueFileInfo( QFileInfo &fileInfo );
 
-            QString getPlatformFromHeader( const QByteArray &rawFileData, const QString &suffix );
-
     };
 
 

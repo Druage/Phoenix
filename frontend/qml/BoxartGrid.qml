@@ -106,11 +106,38 @@ Rectangle {
                     }
                 }
 
+
                 Text {
+                    id: titleText;
                     text: title;
-                    color: root.normalFontColor;
+                    color: "black"//root.normalFontColor;
                     Layout.fillWidth: true;
                     elide: Text.ElideRight;
+                }
+
+                Text {
+                    id: platformText;
+                    anchors {
+                        top: titleText.bottom;
+                        topMargin: 0;
+                    }
+
+                    text: system;
+                    color: "black"//root.normalFontColor;
+                    Layout.fillWidth: true;
+                    elide: Text.ElideRight;
+                }
+
+                Text {
+                    id: absPath;
+                    anchors {
+                        top: platformText.bottom;
+
+                    }
+                    text: filename;
+                    color: "black"//root.normalFontColor;
+                    Layout.fillWidth: true;
+                    elide: Text.ElideMiddle;
                 }
             }
         }

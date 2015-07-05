@@ -71,7 +71,7 @@ bool LibraryInternalDatabase::createSchema() {
             QStringLiteral( "   /* game info */" ) +
             QStringLiteral( "   title TEXT NOT NULL,\n" ) +
             QStringLiteral( "   is_favorite BOOLEAN,\n" ) +
-            QStringLiteral( "   system TEXT NOT NULL,\n" ) +
+            QStringLiteral( "   system TEXT,\n" ) +
             QStringLiteral( "   region TEXT,\n" ) +
             QStringLiteral( "   goodtools_code TEXT,\n" ) +
             QStringLiteral( "   time_played DATETIME,\n" ) +
@@ -79,7 +79,7 @@ bool LibraryInternalDatabase::createSchema() {
 
             QStringLiteral( "   /* file info */" ) +
             QStringLiteral( "   directory TEXT,\n" ) +
-            QStringLiteral( "   filename TEXT UNIQUE,\n" ) +
+            QStringLiteral( "   filename TEXT UNIQUE NOT NULL,\n" ) +
             QStringLiteral( "   sha1 BLOB,\n" ) +
             QStringLiteral( "   crc32 BLOB,\n" ) +
             QStringLiteral( "   rom_count BOOLEAN\n" ) +

@@ -17,18 +17,15 @@ using namespace Library;
 
 LibraryModel::LibraryModel( LibraryInternalDatabase &db, QObject *parent )
     : QSqlTableModel( parent, db.database() ),
-      mFileFilter {
-    "*.sfc", "*.smc", // Super Nintendo
-    //"*.z64", "*.n64", // Nintendo 64;
-    "*.nes", // Nintendo Entertainment System
-    "*.gba",  // Game Boy Advance
-    "*.gb", "*.gbc", "Game Boy / Color"
-},
-mScanFilesThread( this ),
-mCancelScan( false ),
-qmlCount( 0 ),
-qmlRecursiveScan( true ),
-qmlProgress( 0.0 ) {
+      mScanFilesThread( this ),
+      mCancelScan( false ),
+      qmlCount( 0 ),
+      qmlRecursiveScan( true ),
+      qmlProgress( 0.0 ) {
+
+    for( auto &extension : platformMap.keys() ) {
+        mFileFilter.append( "*." + extension );
+    }
 
     mRoleNames = QSqlTableModel::roleNames();
     mRoleNames.insert( TitleRole, "title" );
@@ -157,15 +154,14 @@ void LibraryModel::cancel() {
 
 }
 
-void LibraryModel::setMetadata()
-{
+void LibraryModel::setMetadata() {
     database().transaction();
 }
 
 void LibraryModel::handleFilesFound( const GameImportData importData ) {
 
     static const QString statement = "INSERT INTO " + LibraryInternalDatabase::tableName
-                                     + " (title, system, time_played) " + "VALUES (?,?,?)";
+                                     + " (title, system, filename, time_played) " + "VALUES (?,?,?,?)";
 
     if( cancelScan() ) {
         return;
@@ -185,6 +181,7 @@ void LibraryModel::handleFilesFound( const GameImportData importData ) {
     query.prepare( statement );
     query.addBindValue( importData.title );
     query.addBindValue( importData.system );
+    query.addBindValue( importData.filePath );
     query.addBindValue( importData.timePlayed );
 
     if( !query.exec() ) {
@@ -193,13 +190,15 @@ void LibraryModel::handleFilesFound( const GameImportData importData ) {
 
     // Limit how many times the progress is updated, to reduce strain on the render thread.
     auto importProgress = static_cast<int>( importData.importProgress );
-    if ( importProgress  != static_cast<int>( progress() ) )
+
+    if( importProgress  != static_cast<int>( progress() ) ) {
         setProgress( importProgress );
+    }
 
     if( static_cast<int>( progress() ) == 100 ) {
 
         if( submitAll() ) {
-            database().commit();
+            //database().commit();
         }
 
         else {
@@ -212,16 +211,88 @@ void LibraryModel::handleFilesFound( const GameImportData importData ) {
     }
 }
 
-QByteArray LibraryModel::hash( const QFileInfo &fileInfo ) {
+QByteArray LibraryModel::getCheckSum( const QString &absoluteFilePath ) {
     QByteArray hash;
-    QFile file( fileInfo.canonicalFilePath() );
+    QFile file( absoluteFilePath );
 
     if( file.open( QIODevice::ReadOnly ) ) {
-        hash = QCryptographicHash::hash( file.readAll(), QCryptographicHash::Sha1 ).toHex();
+
+        QCryptographicHash checkSum( QCryptographicHash::Sha1 );
+        checkSum.addData( &file );
+        hash = checkSum.result();
+
         file.close();
     }
 
     return std::move( hash );
+}
+
+bool LibraryModel::getCueFileInfo( QFileInfo &fileInfo ) {
+    QFile file( fileInfo.canonicalFilePath() );
+
+    if( !file.open( QIODevice::ReadOnly ) ) {
+        return false;
+    }
+
+    while( !file.atEnd() ) {
+        auto line = file.readLine();
+        QList<QByteArray> splitLine = line.split( ' ' );
+
+        if( splitLine.first().toUpper() == QByteArrayLiteral( "FILE" ) ) {
+            QString baseName;
+
+            for( int i = 1; i < splitLine.size() - 1; ++i ) {
+
+                auto bytes = splitLine.at( i );
+
+                bytes = bytes.replace( QByteArrayLiteral( "\"" ), QByteArrayLiteral( "" ) );
+
+                if( i == splitLine.size() - 2 ) {
+                    baseName += bytes;
+                } else {
+                    baseName += bytes + ' ';
+                }
+            }
+
+            if( baseName.isEmpty() ) {
+                return false;
+            }
+
+            fileInfo.setFile( fileInfo.canonicalPath() + QDir::separator() + baseName );
+            break;
+
+        }
+    }
+
+    file.close();
+
+    return true;
+}
+
+void LibraryModel::checkHeaderOffsets( const QFileInfo &fileInfo, QString &platform ) {
+    QFile file( fileInfo.canonicalFilePath() );
+
+    if( file.open( QIODevice::ReadOnly ) ) {
+
+        auto headers = headerOffsets.value( fileInfo.suffix() );
+
+        for( auto &header : headers ) {
+            if( !file.seek( header.offset ) ) {
+                continue;
+            }
+
+            auto bytes = file.read( header.length );
+
+            platform = platformForHeaderString( bytes.simplified().toHex() );
+
+            if( !platform.isEmpty() ) {
+                break;
+            }
+
+        }
+
+        file.close();
+    }
 }
 
 void LibraryModel::findFiles() {
@@ -251,21 +322,60 @@ void LibraryModel::findFiles() {
         }
 
         auto extension = fileInfo.suffix();
-        auto sha1 = hash( fileInfo );
 
-        auto system = QString( "Super Nintendo" );
+        // QFileInfo::baseName() seems to split the absolutePath based on periods '.'
+        // This causes issue with some game names that use periods.
+        auto title =  fileInfo.absoluteFilePath().remove(
+                          fileInfo.canonicalPath() ).remove( 0, 1 ).remove( "." + extension );
+        auto absoluteFilePath = fileInfo.canonicalFilePath();
+
+        // We need to check for .cue files specifically, since these files are text files.
+        if( extension == "cue" ) {
+            if( !getCueFileInfo( fileInfo ) ) {
+                // Can't import a wonky cue file. Just skip it.
+                // We should be telling the use that this cue file has an error.
+                qCWarning( phxLibrary ) << fileInfo.canonicalFilePath()
+                                        << " is isn't a valid cue file. Skipping...";
+                continue;
+            }
+        }
+
+        // ####################################################################
+        //                             WARNING!!!
+        // ####################################################################
+
+        // Every call to fileInfo after this point isn't guaranteed to have the
+        // same values.
+
+        // Make copies of the fileInfo data before this point, unless you want the
+        // cue file check to override them.
+
+        auto system = platformMap.value( extension, "" );
+
+        // System should only be empty on ambiguous files, such as ISO's and BINS.
+        if( system.isEmpty() ) {
+
+            checkHeaderOffsets( fileInfo, system );
+
+            if( system.isEmpty() ) {
+                qCWarning( phxLibrary ) << "The system is 'still' empty, for"
+                                        << fileInfo.canonicalFilePath();
+
+                qCWarning( phxLibrary ) << "this means we need to add"
+                                        << "in better header and offset checking.";
+            }
+        }
+
 
         GameImportData importData;
         importData.timePlayed = "00:00";
-        importData.title = fileInfo.baseName();
-        importData.filePath = fileInfo.canonicalFilePath();
+        importData.title = title;
+        importData.filePath = absoluteFilePath;
         importData.importProgress = ( ( i + 1 )
                                       / static_cast<qreal>( fileInfoList.size() ) ) * 100.0;
         importData.system = system;
 
         emit fileFound( std::move( importData ) );
-        //qDebug() << sha1;
-        Q_UNUSED( extension );
 
         ++i;
 
