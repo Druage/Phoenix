@@ -24,12 +24,16 @@ win32 {
     CONFIG(debug, debug|release)  {
         depends.path = $$OUT_PWD/debug
         depends.files += C:/SDL2/bin/SDL2.dll
+        depends.files += $${PWD}/metadata/openvgdb.sqlite
+
     }
 
     CONFIG(release, debug|release) {
         depends.path = $$OUT_PWD/release
         depends.files += C:/SDL2/bin/SDL2.dll
+        depends.files += $${PWD}/metadata/openvgdb.sqlite
     }
+
     INSTALLS += depends
     RC_FILE = ../phoenix.rc
 }
