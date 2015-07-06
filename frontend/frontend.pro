@@ -44,6 +44,7 @@ else {
 }
 
 linux {
+
     CONFIG( debug, debug|release )  {
         depends.path = $$OUT_PWD/debug
         depends.files += $${PWD}/metadata/openvgdb.sqlite
@@ -57,17 +58,7 @@ linux {
 
     INSTALLS += depends
 
-
 }
-
-#macx {
-        depends.files += Contents/Resources
-        depends.path = $${PWD}/metadata/openvgdb.sqlite;
-
-        QMAKE_BUNDLE_DATA += APP_QML_FILES
-
-
-
 
 INCLUDEPATH += include
 
@@ -92,3 +83,10 @@ include( ../common.pri )
 
 RESOURCES += qml/qml.qrc \
              qml/Theme/theme.qrc
+
+macx {
+        depends.files += $${PWD}/metadata/openvgdb.sqlite
+        depends.path = Contents/MacOS
+
+        QMAKE_BUNDLE_DATA += depends
+}

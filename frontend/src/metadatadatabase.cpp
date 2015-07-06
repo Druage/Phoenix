@@ -5,6 +5,8 @@
 #include <QFile>
 #include <QThread>
 #include <QApplication>
+#include <QDir>
+#include <QStandardPaths>
 
 using namespace Library;
 
@@ -27,9 +29,11 @@ MetaDataDatabase::~MetaDataDatabase() {
 }
 
 void MetaDataDatabase::open() {
+    auto currentDir = QDir::current().path();
+
     db = QSqlDatabase::addDatabase( "QSQLITE", "METADATA" );
 
-    db.setDatabaseName( "/Users/lee/Phoenix/frontend/metadata/openvgdb.sqlite" );
+    db.setDatabaseName( currentDir + QDir::separator() + "openvgdb.sqlite" );
 
     if( !db.open() ) {
         qFatal( "Could not open database METADATA %s",
