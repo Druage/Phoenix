@@ -12,6 +12,7 @@
 #include "libraryinternaldatabase.h"
 #include "libretro_cores_info_map.h"
 #include "platforms.h"
+#include "metadatadatabase.h"
 
 namespace Library {
 
@@ -26,18 +27,9 @@ namespace Library {
 
         public:
 
-            // Simple data groupings to simplify signals and slots
-
-            // GameMetaData is used to set in metadata for any game during;
-            // this usually used after the append process.
-            struct GameMetaData {
-                QByteArray hash;
-                QString artworkUrl;
-                QString goodToolsCode;
-                QString region;
-            };
-
             // GameImportData is used to import game files into the SQL database.
+            // This is a a simple data grouping to simplify signals and slots
+
             struct GameImportData {
                 qreal importProgress;
                 QString system;
@@ -60,6 +52,7 @@ namespace Library {
                 ArtworkRole,
                 FileNameRole,
                 SystemPathRole,
+                RowIDRole,
             };
 
             // Getters
@@ -108,7 +101,7 @@ namespace Library {
             // Cancels the import progress if the mScanFilesThread is running.
             void cancel();
 
-            void setMetadata();
+            void startMetaDataScan();
 
         private slots:
 
@@ -127,12 +120,16 @@ namespace Library {
             // nor should it be.
             void findFiles();
 
+            // This needs to be run on the main thread.
+            void setMetadata( const GameMetaData metaData );
+
         signals:
             void countChanged();
             void recursiveScanChanged();
             void progressChanged();
             void fileFound( const GameImportData importData );
-            void cancelScanChanged();
+            void cancelScanChanged( const bool cancel );
+            void calculateCheckSum( GameMetaData metaData );
 
         private:
             // Normal Variables
@@ -141,10 +138,18 @@ namespace Library {
             QVariantList params;
             QMutex scanMutex;
 
+            // Is true when the startMetaDataScan() function has started and
+            // is false when it's completeled. This is used to syncronize the
+            // setMetadata() function.
+            bool mMetaDataEmitted;
+
             // This thread is started when a user wants to import
             // a games folder. Currently, the thread quits whenever the
             // user cancels and import, or the import finishes.
             QThread mScanFilesThread;
+
+            // This thread is started when metadata, such as artwork, is being found for a game.
+            QThread mGetMetadataThread;
 
             // mImportUrl is the url of the folder or file that is
             // being scanned and imported.
@@ -163,10 +168,11 @@ namespace Library {
             void setCancelScan( const bool scan );
 
             // Helper Functions
-            QByteArray getCheckSum( const QString &absoluteFilePath );
             void checkHeaderOffsets( const QFileInfo &fileInfo, QString &platform );
             bool getCueFileInfo( QFileInfo &fileInfo );
 
+            // Used to find metadata for any game.
+            MetaDataDatabase metadataDatabase;
     };
 
 

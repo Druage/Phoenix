@@ -89,10 +89,8 @@ Rectangle {
                         height: parent.height;
 
 
-                        Rectangle {
-                            anchors.fill: parent;
-                            color: "white";
-                        }
+                        asynchronous: true;
+                        source: artworkUrl;
 
                         verticalAlignment: Image.AlignBottom;
 
@@ -109,7 +107,7 @@ Rectangle {
 
                 Text {
                     id: titleText;
-                    text: title;
+                    text: rowID//title;
                     color: "black"//root.normalFontColor;
                     Layout.fillWidth: true;
                     elide: Text.ElideRight;
@@ -134,7 +132,7 @@ Rectangle {
                         top: platformText.bottom;
 
                     }
-                    text: filename;
+                    text: fileName;
                     color: "black"//root.normalFontColor;
                     Layout.fillWidth: true;
                     elide: Text.ElideMiddle;

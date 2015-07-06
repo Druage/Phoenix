@@ -2,7 +2,7 @@ TEMPLATE += app
 
 QT += qml quick widgets concurrent sql multimedia
 
-CONFIG += c++11
+CONFIG += c++11 lib_bundle
 
 #Inlcude backend path
 INCLUDEPATH += ../phoenix-backend ../phoenix-backend/input
@@ -43,17 +43,45 @@ else {
     QMAKE_LFLAGS += -L/usr/local/lib -L/opt/local/lib
 }
 
+linux {
+    CONFIG( debug, debug|release )  {
+        depends.path = $$OUT_PWD/debug
+        depends.files += $${PWD}/metadata/openvgdb.sqlite
+    }
+
+
+    CONFIG(release, debug|release) {
+        depends.path = $$OUT_PWD/release
+        depends.files += $${PWD}/metadata/openvgdb.sqlite
+    }
+
+    INSTALLS += depends
+
+
+}
+
+#macx {
+        depends.files += Contents/Resources
+        depends.path = $${PWD}/metadata/openvgdb.sqlite;
+
+        QMAKE_BUNDLE_DATA += APP_QML_FILES
+
+
+
+
 INCLUDEPATH += include
 
 SOURCES += src/main.cpp \
            src/librarymodel.cpp \
            src/libraryinternaldatabase.cpp \
-    src/platforms.cpp
+           src/platforms.cpp \
+           src/metadatadatabase.cpp
 
 HEADERS += include/librarymodel.h \
            include/libraryinternaldatabase.h \
-    include/libretro_cores_info_map.h \
-    include/platforms.h
+           include/libretro_cores_info_map.h \
+           include/platforms.h \
+           include/metadatadatabase.h
 
 
 # Will build the final executable in the main project directory.

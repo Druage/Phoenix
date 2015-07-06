@@ -26,7 +26,7 @@ QSqlDatabase &LibraryInternalDatabase::database() {
 }
 
 void LibraryInternalDatabase::open() {
-    db = QSqlDatabase::addDatabase( "QSQLITE", "library" );
+    db = QSqlDatabase::addDatabase( "QSQLITE", "LIBRARY" );
 
     QString dataPathStr = QStandardPaths::writableLocation( QStandardPaths::GenericDataLocation );
     Q_ASSERT( !dataPathStr.isEmpty() );
@@ -66,22 +66,22 @@ bool LibraryInternalDatabase::createSchema() {
     q.exec( "CREATE TABLE " + tableVersion + " (version INTEGER NOT NULL)" );
     q.exec( QStringLiteral( "INSERT INTO " ) + tableVersion + QStringLiteral( " (version) VALUES (0)" ) );
     q.exec( QStringLiteral( "CREATE TABLE " ) + tableName + QStringLiteral( " (\n" ) +
-            QStringLiteral( "   id INTEGER PRIMARY KEY AUTOINCREMENT,\n" ) +
+            QStringLiteral( "   rowID INTEGER PRIMARY KEY AUTOINCREMENT,\n" ) +
 
             QStringLiteral( "   /* game info */" ) +
             QStringLiteral( "   title TEXT NOT NULL,\n" ) +
-            QStringLiteral( "   is_favorite BOOLEAN,\n" ) +
+            QStringLiteral( "   isFavorite BOOLEAN,\n" ) +
             QStringLiteral( "   system TEXT,\n" ) +
             QStringLiteral( "   region TEXT,\n" ) +
-            QStringLiteral( "   goodtools_code TEXT,\n" ) +
-            QStringLiteral( "   time_played DATETIME,\n" ) +
-            QStringLiteral( "   artwork TEXT,\n" ) +
+            QStringLiteral( "   goodtoolsCode TEXT,\n" ) +
+            QStringLiteral( "   timePlayed DATETIME,\n" ) +
+            QStringLiteral( "   artworkUrl TEXT,\n" ) +
 
             QStringLiteral( "   /* file info */" ) +
             QStringLiteral( "   directory TEXT,\n" ) +
-            QStringLiteral( "   filename TEXT UNIQUE NOT NULL,\n" ) +
-            QStringLiteral( "   sha1 BLOB,\n" ) +
-            QStringLiteral( "   crc32 BLOB,\n" ) +
+            QStringLiteral( "   fileName TEXT UNIQUE NOT NULL,\n" ) +
+            QStringLiteral( "   sha1 TEXT,\n" ) +
+            QStringLiteral( "   crc32 TEXT,\n" ) +
             QStringLiteral( "   rom_count BOOLEAN\n" ) +
             QStringLiteral( ")" ) );
 
