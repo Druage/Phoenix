@@ -18,8 +18,6 @@ ApplicationWindow {
     minimumHeight: 480;
     minimumWidth: 640;
 
-
-
     HeaderBar {
         id: headerBar;
         z: 100;

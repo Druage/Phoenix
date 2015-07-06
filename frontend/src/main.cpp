@@ -6,6 +6,7 @@
 #include "inputmanager.h"
 #include "librarymodel.h"
 #include "metadatadatabase.h"
+#include <memory.h>
 
 void phoenixDebugMessageHandler( QtMsgType type, const QMessageLogContext &context, const QString &msg ) {
 
@@ -43,6 +44,8 @@ void phoenixDebugMessageHandler( QtMsgType type, const QMessageLogContext &conte
 
 }
 
+
+
 int main( int argc, char *argv[] ) {
     QApplication app( argc, argv );
 
@@ -58,12 +61,11 @@ int main( int argc, char *argv[] ) {
 
 
     Library::LibraryInternalDatabase db;
-    Library::LibraryModel *model = new Library::LibraryModel( db );
+    std::unique_ptr<Library::LibraryModel> model( new Library::LibraryModel( db ) );
 
-    engine.rootContext()->setContextProperty( "libraryModel", model );
+    engine.rootContext()->setContextProperty( "libraryModel", model.get() );
 
     // Register my types!
-
     VideoItem::registerTypes();
     InputManager::registerTypes();
 

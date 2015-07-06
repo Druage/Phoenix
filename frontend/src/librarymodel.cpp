@@ -19,6 +19,7 @@ LibraryModel::LibraryModel( LibraryInternalDatabase &db, QObject *parent )
     : QSqlTableModel( parent, db.database() ),
       mMetaDataEmitted( false ),
       mScanFilesThread( this ),
+      mGetMetadataThread( this ),
       mCancelScan( false ),
       qmlCount( 0 ),
       qmlRecursiveScan( true ),
@@ -28,7 +29,7 @@ LibraryModel::LibraryModel( LibraryInternalDatabase &db, QObject *parent )
         mFileFilter.append( "*." + extension );
     }
 
-    metadataDatabase.moveToThread( &mGetMetadataThread );
+    mMetaDataDatabse.moveToThread( &mGetMetadataThread );
 
     mRoleNames = QSqlTableModel::roleNames();
     mRoleNames.insert( TitleRole, "title" );
@@ -54,7 +55,7 @@ LibraryModel::LibraryModel( LibraryInternalDatabase &db, QObject *parent )
 
     } );
 
-    connect( this, &LibraryModel::cancelScanChanged, &metadataDatabase, &MetaDataDatabase::setCancel );
+    connect( this, &LibraryModel::cancelScanChanged, &mMetaDataDatabse, &MetaDataDatabase::setCancel );
 
     connect( &mGetMetadataThread, &QThread::finished, this, [ this ] {
 
@@ -64,21 +65,16 @@ LibraryModel::LibraryModel( LibraryInternalDatabase &db, QObject *parent )
 
     } );
 
-    connect( &metadataDatabase, &MetaDataDatabase::updateMetadata, this, &LibraryModel::setMetadata );
-    connect( this, &LibraryModel::calculateCheckSum, &metadataDatabase, &MetaDataDatabase::getMetadata );
+    connect( &mMetaDataDatabse, &MetaDataDatabase::updateMetadata, this, &LibraryModel::setMetadata );
+    connect( this, &LibraryModel::calculateCheckSum, &mMetaDataDatabse, &MetaDataDatabase::getMetadata );
 }
 
 LibraryModel::~LibraryModel() {
-    if( mScanFilesThread.isRunning() ) {
-        setCancelScan( true );
-        mScanFilesThread.exit();
-        mScanFilesThread.wait();
-    }
-    if ( mGetMetadataThread.isRunning() ) {
-        qDebug() << "thread is running. STOP IT!!!";
-        setCancelScan( true );
-        mGetMetadataThread.wait();
-    }
+    cancel();
+    mGetMetadataThread.wait();
+    mScanFilesThread.wait();
+
+
 }
 QVariant LibraryModel::data( const QModelIndex &index, int role ) const {
     QVariant value = QSqlTableModel::data( index, role );
@@ -170,23 +166,23 @@ void LibraryModel::setFilter( QString filter, QVariantList params, bool preserve
 }
 
 void LibraryModel::cancel() {
-    if( !mScanFilesThread.isRunning() && !mGetMetadataThread.isRunning() ) {
-        return;
+
+    if( mGetMetadataThread.isRunning() ) {
+        mMetaDataDatabse.setCancel( true );
     }
 
-    setCancelScan( true );
-
-    metadataDatabase.setCancel( true );
-
+    if( mScanFilesThread.isRunning() ) {
+        setCancelScan( true );
+    }
 
 }
 
 void LibraryModel::startMetaDataScan() {
     if( !mGetMetadataThread.isRunning() ) {
         mGetMetadataThread.start( QThread::NormalPriority );
+        qCDebug( phxLibrary ) << "mGetMetadataThread Starting...";
     }
 
-    qDebug() << "start thread";
 
     static const QString fetchCheckSumStatement = "SELECT filename, rowID FROM " + LibraryInternalDatabase::tableName;
     database().transaction();
@@ -209,7 +205,6 @@ void LibraryModel::startMetaDataScan() {
         metaData.rowID = query.value( 1 ).toInt();
         metaData.updated = false;
         metaData.progress = ( i / static_cast<qreal>( count() ) ) * 100.0;
-        qDebug() << "filePath: " << metaData.rowID << metaData.filePath;
         emit calculateCheckSum( std::move( metaData ) );
 
         ++i;
@@ -225,7 +220,7 @@ void LibraryModel::setMetadata( const GameMetaData metaData ) {
 
     /*
     if ( !mGetMetadataThread.is ) {
-        qCDebug( phxLibrary ) << " metadataDatabase Canceled...";
+        qCDebug( phxLibrary ) << " mMetaDataDatabse Canceled...";
         mGetMetadataThread.quit();
         mGetMetadataThread.wait();
         return;

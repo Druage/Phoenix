@@ -172,7 +172,7 @@ namespace Library {
             bool getCueFileInfo( QFileInfo &fileInfo );
 
             // Used to find metadata for any game.
-            MetaDataDatabase metadataDatabase;
+            MetaDataDatabase mMetaDataDatabse;
     };
 
 

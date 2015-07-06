@@ -36,6 +36,9 @@ void MetaDataDatabase::open() {
                 qPrintable( db.lastError().driverText() ) );
     }
 
+    qCDebug( phxLibrary, "Opening library database %s", qPrintable( db.databaseName() ) );
+
+
 }
 
 QSqlDatabase &MetaDataDatabase::database() {
@@ -65,8 +68,7 @@ void MetaDataDatabase::getMetadata( GameMetaData metaData ) {
     mMutex.unlock();
 
     if( cancelled ) {
-        qDebug() << "Close Thread;;;";
-        QThread::currentThread()->quit();
+        QThread::currentThread()->exit();
         return;
     }
 
@@ -76,11 +78,12 @@ void MetaDataDatabase::getMetadata( GameMetaData metaData ) {
         return;
     }
 
-    //qDebug() <<  checkSum << filePath;
     static const QString romIDFetchStatement = QString( "SELECT romID FROM " + tableRoms
             + " WHERE romHashSHA1 = ?" );
 
+    sqlMutex.lock();
     QSqlQuery query( database() );
+    sqlMutex.unlock();
 
     query.prepare( romIDFetchStatement );
     query.addBindValue( checkSum );

@@ -37,7 +37,7 @@ namespace Library {
             static const QString tableReleases;
             static const QString tableRegions;
 
-            explicit MetaDataDatabase( QObject *parent = 0);
+            explicit MetaDataDatabase( QObject *parent = 0 );
 
             ~MetaDataDatabase();
 
@@ -60,6 +60,7 @@ namespace Library {
             qreal mProgress;
             bool mCancel;
             QMutex mMutex;
+            QMutex sqlMutex;
     };
 
 }
