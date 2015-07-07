@@ -22,10 +22,10 @@ namespace Library {
             Q_PROPERTY( bool recursiveScan READ recursiveScan WRITE setRecursiveScan
                         NOTIFY recursiveScanChanged )
 
-
             Q_PROPERTY( qreal progress READ progress NOTIFY progressChanged )
+            Q_PROPERTY( QString message READ message WRITE setMessage NOTIFY messageChanged )
 
-        public:
+       public:
 
             // GameImportData is used to import game files into the SQL database.
             // This is a a simple data grouping to simplify signals and slots
@@ -63,9 +63,11 @@ namespace Library {
             int count() const;
             qreal progress() const;
             bool recursiveScan() const;
+            QString message() const;
 
             // QML Setters
             void setRecursiveScan( const bool scan );
+            void setMessage( const QString message );
 
             // Subclass Setters.
             QVariantMap get( int inx );
@@ -73,8 +75,6 @@ namespace Library {
 
             // Subclass Getters
             QHash<int, QByteArray> roleNames() const;
-
-
 
         public slots:
             // Removes 1 row from the SQL model.
@@ -100,6 +100,8 @@ namespace Library {
 
             // Cancels the import progress if the mScanFilesThread is running.
             void cancel();
+
+            void sync();
 
             void startMetaDataScan();
 
@@ -128,6 +130,7 @@ namespace Library {
 
         signals:
             void countChanged();
+            void messageChanged();
             void recursiveScanChanged();
             void progressChanged();
             void fileFound( const GameImportData importData );
@@ -166,6 +169,7 @@ namespace Library {
             int qmlCount;
             bool qmlRecursiveScan;
             qreal qmlProgress;
+            QString qmlMessage;
 
             // QML Setters
             void setProgress( const qreal progress );

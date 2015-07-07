@@ -48,52 +48,64 @@ LibraryModel::LibraryModel( LibraryInternalDatabase &db, QObject *parent )
 
     connect( this, &LibraryModel::fileFound, this, &LibraryModel::handleFilesFound );
     connect( &mScanFilesThread, &QThread::started, this, &LibraryModel::findFiles, Qt::DirectConnection );
+    connect( &mScanFilesThread, &QThread::started, this, [ this ] {
+        setMessage( "Importing Games..." );
+    } );
     connect( &mScanFilesThread, &QThread::finished, this, [ this ] {
 
         qCDebug( phxLibrary ) << "mScanFilesThread Stopped...";
         setCancelScan( false );
         mImportUrl.clear();
         setProgress( 0.0 );
+        setMessage( "Finished..." );
 
     } );
 
     connect( this, &LibraryModel::cancelScanChanged, &mMetaDataDatabse, &MetaDataDatabase::setCancel );
 
+    connect( &mGetMetadataThread, &QThread::started, this, [ this ] {
+        setMessage( "Scraping Artwork..." );
+    } );
     connect( &mGetMetadataThread, &QThread::finished, this, [ this ] {
 
         qCDebug( phxLibrary ) << "mGetMetadataThread Stopped...";
         setProgress( 0.0 );
         setCancelScan( false );
-
-        qDebug() << "LAST USED ROW: " << lastUpdatedRowID;
+        setMessage( "Finished..." );
 
     } );
 
     connect( &mMetaDataDatabse, &MetaDataDatabase::updateMetadata, this, &LibraryModel::setMetadata );
     connect( this, &LibraryModel::calculateCheckSum, &mMetaDataDatabse, &MetaDataDatabase::getMetadata );
 
-    //updateUknownMetadata();
-
 }
 
 LibraryModel::~LibraryModel() {
+
+    qDebug() << "cancel;" << mGetMetadataThread.isRunning();
+
     cancel();
 
     if( mGetMetadataThread.isRunning() ) {
+
         mGetMetadataThread.wait();
     }
 
-    if( mScanFilesThread.isRunning() )
+    if( mScanFilesThread.isRunning() ) {
 
-    {
+        cancel();
+
         mScanFilesThread.wait();
     }
+
+    sync();
 
     QSettings settings;
     settings.beginGroup( "Library" );
     settings.setValue( "LastRowIndex", lastUpdatedRowID );
 
 }
+
 QVariant LibraryModel::data( const QModelIndex &index, int role ) const {
     QVariant value = QSqlTableModel::data( index, role );
 
@@ -186,11 +198,23 @@ void LibraryModel::setFilter( QString filter, QVariantList params, bool preserve
 void LibraryModel::cancel() {
 
     if( mGetMetadataThread.isRunning() ) {
+        setCancelScan( true );
         mMetaDataDatabse.setCancel( true );
     }
 
     if( mScanFilesThread.isRunning() ) {
         setCancelScan( true );
+    }
+
+}
+
+void LibraryModel::sync() {
+    if( submitAll() ) {
+        database().commit();
+    }
+
+    else {
+        database().rollback();
     }
 
 }
@@ -254,8 +278,6 @@ void LibraryModel::resumeMetadataScan() {
     query.prepare( countRows );
     query.addBindValue( startingRow );
 
-    qDebug() << startingRow;
-
     if( !query.exec() ) {
         qCWarning( phxLibrary ) << "startMetaDataScan() error: "
                                 << qPrintable( query.lastError().text() );
@@ -302,7 +324,6 @@ void LibraryModel::resumeMetadataScan() {
         metaData.updated = false;
         metaData.progress = ( i / static_cast<qreal>( rowCount ) ) * 100.0;
 
-        qDebug() << metaData.progress;
         emit calculateCheckSum( std::move( metaData ) );
         ++i;
 
@@ -314,8 +335,6 @@ void LibraryModel::resumeMetadataScan() {
 
 
 }
-
-
 
 
 void LibraryModel::startMetaDataScan() {
@@ -363,18 +382,13 @@ void LibraryModel::setMetadata( const GameMetaData metaData ) {
     static int i = 0;
     static int previousProgress = 0;
 
-    /*
-    if ( !mGetMetadataThread.is ) {
-        qCDebug( phxLibrary ) << " mMetaDataDatabse Canceled...";
-        mGetMetadataThread.quit();
-        mGetMetadataThread.wait();
-        return;
-    }
-    */
-
     if( i == 0 ) {
         database().transaction();
         i = 1;
+    }
+
+    if( cancelScan() ) {
+        qDebug() << "cancel Scan";
     }
 
     static const QString updateDataStatement( "UPDATE " + LibraryInternalDatabase::tableName
@@ -413,13 +427,7 @@ void LibraryModel::setMetadata( const GameMetaData metaData ) {
             lastUpdatedRowID = -1;
             setProgress( roundedProgress );
 
-            if( submitAll() ) {
-                database().commit();
-            }
-
-            else {
-                database().rollback();
-            }
+            sync();
 
             mGetMetadataThread.quit();
 
@@ -467,15 +475,10 @@ void LibraryModel::handleFilesFound( const GameImportData importData ) {
 
     if( static_cast<int>( progress() ) == 100 ) {
 
-        if( submitAll() ) {
-            database().commit();
-        }
-
-        else {
-            database().rollback();
-        }
+        sync();
 
         updateCount();
+
         startMetaDataScan();
 
         //endInsertRows();
@@ -679,9 +682,18 @@ bool LibraryModel::recursiveScan() const {
     return qmlRecursiveScan;
 }
 
+QString LibraryModel::message() const {
+    return qmlMessage;
+}
+
 void LibraryModel::setRecursiveScan( const bool scan ) {
     qmlRecursiveScan = scan;
     emit recursiveScanChanged();
+}
+
+void LibraryModel::setMessage( const QString message ) {
+    qmlMessage = message;
+    emit messageChanged();
 }
 
 
@@ -708,13 +720,7 @@ bool LibraryModel::remove( int row, int count ) {
     // If you want to cache changed, don't commit this.
     //
 
-    if( submitAll() ) {
-        //database().commit();
-    }
-
-    else {
-        database().rollback();
-    }
+    sync();
 
 
     //endRemoveRows();
@@ -752,13 +758,9 @@ void LibraryModel::clear() {
         return;
     }
 
-    if( submitAll() ) {
-        database().commit();
-    }
+    setMessage( "Library Synced..." );
 
-    else {
-        database().rollback();
-    }
+    sync();
 
     updateCount();
 }

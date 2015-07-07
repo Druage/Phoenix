@@ -123,6 +123,14 @@ Item {
                         text: libraryModel.progress;
                         color: "white";
                     }
+
+                    Label {
+                        anchors {
+                            verticalCenter: parent.verticalCenter;
+                        }
+                        text: libraryModel.message;
+                        color: "white";
+                    }
                 }
             }
 
