@@ -103,8 +103,11 @@ namespace Library {
 
             void startMetaDataScan();
 
-        private slots:
+            void updateUknownMetadata();
 
+            void resumeMetadataScan();
+
+        private slots:
 
             // handleFilesFound runs on the main QML thread, and is
             // where the SQL query statement is created and executed.
@@ -137,6 +140,9 @@ namespace Library {
             QHash<int, QByteArray> mRoleNames;
             QVariantList params;
             QMutex scanMutex;
+            // Used to find metadata for any game.
+            MetaDataDatabase mMetaDataDatabse;
+            int lastUpdatedRowID;
 
             // Is true when the startMetaDataScan() function has started and
             // is false when it's completeled. This is used to syncronize the
@@ -167,12 +173,12 @@ namespace Library {
             // Normal Setters
             void setCancelScan( const bool scan );
 
+
             // Helper Functions
             void checkHeaderOffsets( const QFileInfo &fileInfo, QString &platform );
             bool getCueFileInfo( QFileInfo &fileInfo );
 
-            // Used to find metadata for any game.
-            MetaDataDatabase mMetaDataDatabse;
+
     };
 
 

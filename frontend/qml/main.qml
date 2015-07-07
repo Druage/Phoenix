@@ -18,6 +18,10 @@ ApplicationWindow {
     minimumHeight: 480;
     minimumWidth: 640;
 
+    Component.onCompleted: {
+        libraryModel.resumeMetadataScan();
+    }
+
     HeaderBar {
         id: headerBar;
         z: 100;

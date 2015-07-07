@@ -12,6 +12,7 @@
 #include <QDir>
 #include <QMutexLocker>
 #include <QCryptographicHash>
+#include <QSettings>
 
 using namespace Library;
 
@@ -21,6 +22,7 @@ LibraryModel::LibraryModel( LibraryInternalDatabase &db, QObject *parent )
       mScanFilesThread( this ),
       mGetMetadataThread( this ),
       mCancelScan( false ),
+      lastUpdatedRowID( -1 ),
       qmlCount( 0 ),
       qmlRecursiveScan( true ),
       qmlProgress( 0.0 ) {
@@ -38,7 +40,7 @@ LibraryModel::LibraryModel( LibraryInternalDatabase &db, QObject *parent )
     mRoleNames.insert( ArtworkRole, "artworkUrl" );
     mRoleNames.insert( FileNameRole, "fileName" );
     mRoleNames.insert( SystemPathRole, "systemPath" );
-    mRoleNames.insert( RowIDRole, "rowID" );
+    mRoleNames.insert( RowIDRole, "rowIndex" );
 
     setEditStrategy( QSqlTableModel::OnManualSubmit );
     setTable( LibraryInternalDatabase::tableName );
@@ -63,17 +65,33 @@ LibraryModel::LibraryModel( LibraryInternalDatabase &db, QObject *parent )
         setProgress( 0.0 );
         setCancelScan( false );
 
+        qDebug() << "LAST USED ROW: " << lastUpdatedRowID;
+
     } );
 
     connect( &mMetaDataDatabse, &MetaDataDatabase::updateMetadata, this, &LibraryModel::setMetadata );
     connect( this, &LibraryModel::calculateCheckSum, &mMetaDataDatabse, &MetaDataDatabase::getMetadata );
+
+    //updateUknownMetadata();
+
 }
 
 LibraryModel::~LibraryModel() {
     cancel();
-    mGetMetadataThread.wait();
-    mScanFilesThread.wait();
 
+    if( mGetMetadataThread.isRunning() ) {
+        mGetMetadataThread.wait();
+    }
+
+    if( mScanFilesThread.isRunning() )
+
+    {
+        mScanFilesThread.wait();
+    }
+
+    QSettings settings;
+    settings.beginGroup( "Library" );
+    settings.setValue( "LastRowIndex", lastUpdatedRowID );
 
 }
 QVariant LibraryModel::data( const QModelIndex &index, int role ) const {
@@ -177,18 +195,19 @@ void LibraryModel::cancel() {
 
 }
 
-void LibraryModel::startMetaDataScan() {
+void LibraryModel::updateUknownMetadata() {
     if( !mGetMetadataThread.isRunning() ) {
         mGetMetadataThread.start( QThread::NormalPriority );
         qCDebug( phxLibrary ) << "mGetMetadataThread Starting...";
     }
 
 
-    static const QString fetchCheckSumStatement = "SELECT filename, rowID FROM " + LibraryInternalDatabase::tableName;
+    static const QString fetchCheckSumStatement = "SELECT filename, rowIndex FROM "
+            + LibraryInternalDatabase::tableName
+            + " WHERE artworkUrl = NULL";
     database().transaction();
 
     QSqlQuery query( database() );
-
 
     if( !query.exec( fetchCheckSumStatement ) ) {
         qCWarning( phxLibrary ) << "startMetaDataScan() error: "
@@ -202,12 +221,138 @@ void LibraryModel::startMetaDataScan() {
 
         GameMetaData metaData;
         metaData.filePath = query.value( 0 ).toString();
-        metaData.rowID = query.value( 1 ).toInt();
+        metaData.rowIndex = query.value( 1 ).toInt();
         metaData.updated = false;
         metaData.progress = ( i / static_cast<qreal>( count() ) ) * 100.0;
         emit calculateCheckSum( std::move( metaData ) );
 
         ++i;
+    }
+
+    if( i == 1 ) {
+        mGetMetadataThread.quit();
+    }
+
+}
+
+void LibraryModel::resumeMetadataScan() {
+    QSettings settings;
+    settings.beginGroup( "Library" );
+    auto startingRow = settings.value( "LastRowIndex" );
+
+    if( !startingRow.isValid() || startingRow.toInt() == -1 ) {
+        return;
+    }
+
+    static const QString countRows = QString( "SELECT COUNT(*) FROM "
+                                     + LibraryInternalDatabase::tableName
+                                     + " WHERE rowIndex > ?" );
+    database().transaction();
+
+    QSqlQuery query( database() );
+
+    query.prepare( countRows );
+    query.addBindValue( startingRow );
+
+    qDebug() << startingRow;
+
+    if( !query.exec() ) {
+        qCWarning( phxLibrary ) << "startMetaDataScan() error: "
+                                << qPrintable( query.lastError().text() );
+        return;
+    }
+
+    int rowCount = -1;
+
+    if( query.first() ) {
+        rowCount = query.value( 0 ).toInt();
+    }
+
+    if( rowCount == -1 ) {
+        return;
+    }
+
+    query.clear();
+
+    if( !mGetMetadataThread.isRunning() ) {
+        mGetMetadataThread.start( QThread::NormalPriority );
+        qCDebug( phxLibrary ) << "mGetMetadataThread Starting...";
+    }
+
+    static const QString resumeMetadataStatement =   QString( "SELECT filename, rowIndex FROM "
+            + LibraryInternalDatabase::tableName
+            + " WHERE rowIndex > ?" );
+
+    query.prepare( resumeMetadataStatement );
+    query.addBindValue( startingRow );
+
+    if( !query.exec() ) {
+        qCWarning( phxLibrary ) << "startMetaDataScan() error: "
+                                << qPrintable( query.lastError().text() );
+        return;
+    }
+
+    int i = 1;
+
+    while( query.next() ) {
+
+        GameMetaData metaData;
+        metaData.filePath = query.value( 0 ).toString();
+        metaData.rowIndex = query.value( 1 ).toInt();
+        metaData.updated = false;
+        metaData.progress = ( i / static_cast<qreal>( rowCount ) ) * 100.0;
+
+        qDebug() << metaData.progress;
+        emit calculateCheckSum( std::move( metaData ) );
+        ++i;
+
+    }
+
+    if( i == 1 ) {
+        mGetMetadataThread.quit();
+    }
+
+
+}
+
+
+
+
+void LibraryModel::startMetaDataScan() {
+    if( !mGetMetadataThread.isRunning() ) {
+        mGetMetadataThread.start( QThread::NormalPriority );
+        qCDebug( phxLibrary ) << "mGetMetadataThread Starting...";
+    }
+
+
+    static const QString fetchCheckSumStatement = "SELECT filename, rowIndex FROM " + LibraryInternalDatabase::tableName;
+    database().transaction();
+
+    QSqlQuery query( database() );
+
+    if( !query.exec( fetchCheckSumStatement ) ) {
+        qCWarning( phxLibrary ) << "startMetaDataScan() error: "
+                                << qPrintable( query.lastError().text() );
+        return;
+    }
+
+    int i = 1;
+
+    while( query.next() ) {
+
+        GameMetaData metaData;
+        metaData.filePath = query.value( 0 ).toString();
+        metaData.rowIndex = query.value( 1 ).toInt();
+        qDebug() << metaData.filePath;
+        metaData.updated = false;
+        metaData.progress = ( i / static_cast<qreal>( count() ) ) * 100.0;
+        emit calculateCheckSum( std::move( metaData ) );
+
+        ++i;
+    }
+
+    if( i == 1 ) {
+        mGetMetadataThread.quit();
     }
 }
 
@@ -234,7 +379,7 @@ void LibraryModel::setMetadata( const GameMetaData metaData ) {
 
     static const QString updateDataStatement( "UPDATE " + LibraryInternalDatabase::tableName
             + " SET artworkUrl = ?, sha1 = ?"
-            +   " WHERE rowID = ? " );
+            +   " WHERE rowIndex = ? " );
 
 
     if( metaData.updated ) {
@@ -243,9 +388,11 @@ void LibraryModel::setMetadata( const GameMetaData metaData ) {
 
         query.prepare( updateDataStatement );
 
+        //qDebug() << metaData.rowIndex;
+
         query.addBindValue( metaData.artworkUrl );
         query.addBindValue( metaData.sha1 );
-        query.addBindValue( metaData.rowID );
+        query.addBindValue( metaData.rowIndex );
 
         if( !query.exec() ) {
             qCWarning( phxLibrary ) << "Sql Update Error: " << query.lastError().text();
@@ -259,12 +406,15 @@ void LibraryModel::setMetadata( const GameMetaData metaData ) {
         previousProgress = roundedProgress;
         setProgress( roundedProgress );
 
+        lastUpdatedRowID = metaData.rowIndex;
+
         if( roundedProgress == 100 ) {
 
+            lastUpdatedRowID = -1;
             setProgress( roundedProgress );
 
             if( submitAll() ) {
-                //database().commit();
+                database().commit();
             }
 
             else {
@@ -318,7 +468,7 @@ void LibraryModel::handleFilesFound( const GameImportData importData ) {
     if( static_cast<int>( progress() ) == 100 ) {
 
         if( submitAll() ) {
-            //database().commit();
+            database().commit();
         }
 
         else {

@@ -24,7 +24,7 @@ namespace Library {
         QString description;
         QString title;
         QString filePath;
-        int rowID;
+        int rowIndex;
         qreal progress;
         bool updated;
     };

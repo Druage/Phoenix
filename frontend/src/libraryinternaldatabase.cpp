@@ -66,7 +66,7 @@ bool LibraryInternalDatabase::createSchema() {
     q.exec( "CREATE TABLE " + tableVersion + " (version INTEGER NOT NULL)" );
     q.exec( QStringLiteral( "INSERT INTO " ) + tableVersion + QStringLiteral( " (version) VALUES (0)" ) );
     q.exec( QStringLiteral( "CREATE TABLE " ) + tableName + QStringLiteral( " (\n" ) +
-            QStringLiteral( "   rowID INTEGER PRIMARY KEY AUTOINCREMENT,\n" ) +
+            QStringLiteral( "   rowIndex INTEGER PRIMARY KEY AUTOINCREMENT,\n" ) +
 
             QStringLiteral( "   /* game info */" ) +
             QStringLiteral( "   title TEXT NOT NULL,\n" ) +
@@ -88,6 +88,7 @@ bool LibraryInternalDatabase::createSchema() {
     q.exec( QStringLiteral( "CREATE INDEX title_index ON " ) + tableName + QStringLiteral( " (title)" ) );
     q.exec( QStringLiteral( "CREATE INDEX favorite_index ON " ) + tableName + QStringLiteral( " (is_favorite)" ) );
     db.commit();
+
     return true;
 }
 

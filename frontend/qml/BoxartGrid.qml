@@ -86,6 +86,12 @@ Rectangle {
                             bottom: parent.bottom;
                         }
 
+                        onStatusChanged: {
+                            if ( status == Image.Null || status === Image.Error) {
+                                console.log("Error in " + source)
+                            }
+                        }
+
                         height: parent.height;
 
 
@@ -107,7 +113,7 @@ Rectangle {
 
                 Text {
                     id: titleText;
-                    text: rowID//title;
+                    text: rowIndex//title;
                     color: "black"//root.normalFontColor;
                     Layout.fillWidth: true;
                     elide: Text.ElideRight;
