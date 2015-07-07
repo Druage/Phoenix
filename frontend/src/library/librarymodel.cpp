@@ -82,8 +82,6 @@ LibraryModel::LibraryModel( LibraryInternalDatabase &db, QObject *parent )
 
 LibraryModel::~LibraryModel() {
 
-    qDebug() << "cancel;" << mGetMetadataThread.isRunning();
-
     cancel();
 
     if( mGetMetadataThread.isRunning() ) {
@@ -362,7 +360,6 @@ void LibraryModel::startMetaDataScan() {
         GameMetaData metaData;
         metaData.filePath = query.value( 0 ).toString();
         metaData.rowIndex = query.value( 1 ).toInt();
-        qDebug() << metaData.filePath;
         metaData.updated = false;
         metaData.progress = ( i / static_cast<qreal>( count() ) ) * 100.0;
         emit calculateCheckSum( std::move( metaData ) );

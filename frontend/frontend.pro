@@ -64,19 +64,19 @@ linux {
 
 }
 
-INCLUDEPATH += include
+INCLUDEPATH += include include/library
 
 SOURCES += src/main.cpp \
-           src/librarymodel.cpp \
-           src/libraryinternaldatabase.cpp \
-           src/platforms.cpp \
-           src/metadatadatabase.cpp
+           src/library/librarymodel.cpp \
+           src/library/libraryinternaldatabase.cpp \
+           src/library/platforms.cpp \
+           src/library/metadatadatabase.cpp
 
-HEADERS += include/librarymodel.h \
-           include/libraryinternaldatabase.h \
-           include/libretro_cores_info_map.h \
-           include/platforms.h \
-           include/metadatadatabase.h
+HEADERS += include/library/librarymodel.h \
+           include/library/libraryinternaldatabase.h \
+           include/library/libretro_cores_info_map.h \
+           include/library/platforms.h \
+           include/library/metadatadatabase.h
 
 
 # Will build the final executable in the main project directory.
